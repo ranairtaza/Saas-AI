@@ -12,7 +12,7 @@ export const ExecutiveOperatingStateSchema = z.object({
   // High-level context & telemetry
   businessContext: BusinessContextSchema.optional(),
   
-  // Phase 27: Governance Constraints
+  // Governance Constraints
   activeGovernancePolicy: z.object({
     policyVersion: z.number(),
     riskTolerance: z.string(),
@@ -21,7 +21,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     restrictedActions: z.array(z.string()),
   }).optional().nullable(),
   
-  // Phase 28: Active Decisions
+  // Active Decisions
   activeDecisions: z.array(z.object({
     id: z.string(),
     title: z.string(),
@@ -33,7 +33,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     createdAt: z.string().datetime().or(z.date()),
   })),
   
-  // Phase 29: Recent Learning Signals
+  // Recent Learning Signals
   recentLearningSignals: z.array(z.object({
     id: z.string(),
     domain: z.string(),
@@ -45,7 +45,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     createdAt: z.string().datetime().or(z.date()),
   })),
   
-  // Phase 30: Active Forecasts
+  // Active Forecasts
   activeForecasts: z.array(z.object({
     id: z.string(),
     domain: z.string(),
@@ -58,7 +58,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     createdAt: z.string().datetime().or(z.date()),
   })),
   
-  // Phase 31: Action Plans
+  // Strategic Action Plans
   actionPlans: z.array(z.object({
     id: z.string(),
     actionType: z.string(),
@@ -72,7 +72,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     createdAt: z.string().datetime().or(z.date()),
   })),
 
-  // Phase 18-26/31: Human-gated Pending Actions
+  // Human-Gated Pending Actions
   pendingActions: z.array(z.object({
     id: z.string(),
     actionName: z.string(),
@@ -82,7 +82,7 @@ export const ExecutiveOperatingStateSchema = z.object({
     createdAt: z.string().datetime().or(z.date()),
   })),
 
-  // Phase 35: Outcome Attributions
+  // Outcome Attributions
   recentOutcomeAttributions: z.array(z.object({
     id: z.string(),
     attributionStatus: z.string(),

@@ -114,7 +114,7 @@ RULES:
 
     let pendingActionId = null;
 
-    // Phase 16 Link: If AI proposes an action, create a PendingAction
+    // Governance link: If AI proposes an actionable measure, stage it as a human-gated PendingAction
     if (actionProposal && actionProposal.actionName) {
       const pendingAction = await prisma.pendingAction.create({
         data: {

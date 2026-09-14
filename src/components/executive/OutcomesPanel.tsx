@@ -44,9 +44,7 @@ interface Props {
 }
 
 /**
- * WHAT HAPPENED? (Phase 35 attribution semantics)
- *
- * Attribution levels and their UI language:
+ * Attribution semantics and UI display rules:
  *
  *   DIRECT_CAUSAL          → May show attributed business value
  *   CORRELATED             → "Outcome observed — causal attribution not established"
@@ -54,7 +52,7 @@ interface Props {
  *   INSUFFICIENT_EVIDENCE  → "Insufficient evidence"
  *
  * NEVER labels CORRELATED outcomes as ROI or attributed value.
- * This preserves the Phase 35 conservative attribution semantics exactly.
+ * This preserves conservative attribution semantics consistently.
  */
 export function OutcomesPanel({
   measuringOutcomes,

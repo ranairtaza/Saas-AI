@@ -12,13 +12,13 @@ export class ExecutiveOperatingSystemService {
     // 1. Fetch Business Context
     const businessContext = await BusinessContextBuilder.buildBusinessContext(organizationId);
 
-    // 2. Fetch Active Governance Policy (Phase 27)
+    // 2. Fetch Active Governance Policy
     const policy = await prisma.executiveGovernancePolicy.findFirst({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
     });
 
-    // 3. Fetch Active Decisions (Phase 28)
+    // 3. Fetch Active Decisions
     const decisions = await prisma.executiveDecision.findMany({
       where: {
         organizationId,
@@ -28,21 +28,21 @@ export class ExecutiveOperatingSystemService {
       take: 20,
     });
 
-    // 4. Fetch Recent Learning Signals (Phase 29)
+    // 4. Fetch Recent Learning Signals
     const learningSignals = await prisma.executiveLearningSignal.findMany({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
       take: 15,
     });
 
-    // 5. Fetch Active Forecasts (Phase 30)
+    // 5. Fetch Active Forecasts
     const forecasts = await prisma.executiveForecast.findMany({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },
       take: 15,
     });
 
-    // 6. Fetch Active Action Plans (Phase 31)
+    // 6. Fetch Active Action Plans
     const actionPlans = await prisma.executiveActionPlan.findMany({
       where: {
         organizationId,
@@ -62,7 +62,7 @@ export class ExecutiveOperatingSystemService {
       take: 20,
     });
 
-    // 8. Fetch Recent Outcome Attributions (Phase 35)
+    // 8. Fetch Recent Outcome Attributions
     const recentOutcomeAttributions = await prisma.executiveOutcomeAttribution.findMany({
       where: { organizationId },
       orderBy: { createdAt: 'desc' },

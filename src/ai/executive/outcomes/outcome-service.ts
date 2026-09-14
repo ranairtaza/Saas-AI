@@ -250,7 +250,7 @@ export class ExecutiveOutcomeService {
       userId,
     });
 
-    // 5. Create Structured Learning Signal (Phase 29)
+    // 5. Create Structured Learning Signal
     await prisma.executiveLearningSignal.create({
       data: {
         organizationId,
@@ -298,7 +298,7 @@ export class ExecutiveOutcomeService {
       },
     });
 
-    // 7. Save the explicit attribution graph (Phase 35)
+    // 7. Save the explicit attribution graph
     await prisma.executiveOutcomeAttribution.create({
       data: {
         organizationId,
@@ -400,7 +400,7 @@ export class ExecutiveOutcomeService {
   }
 
   /**
-   * Lists structured learning signals for an organization (Phase 29).
+   * Lists structured learning signals for an organization.
    */
   static async listLearningSignals(
     organizationId: string,
@@ -440,7 +440,7 @@ export class ExecutiveOutcomeService {
   }
 
   /**
-   * Retrieves historical feedback for a specific strategy to inform Phase 26 strategy synthesis.
+   * Retrieves historical feedback for a specific strategy to inform adaptive strategy synthesis.
    */
   static async getHistoricalStrategyFeedback(
     organizationId: string,

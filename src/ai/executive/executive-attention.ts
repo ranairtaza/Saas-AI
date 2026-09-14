@@ -6,13 +6,12 @@ import {
 } from './executive-value-types';
 
 /**
- * Phase 33: Executive Attention Model
+ * Executive Attention Model
  * 
  * Deterministic attention ranker that synthesizes operating state into
  * a ranked list of items requiring executive review.
  * 
- * DOES NOT: approve, execute, email, or trigger any side effects.
- * Reuses Phase 31 priority semantics — no second priority formula.
+ * Pure computation: does not approve, execute, or trigger external side effects.
  */
 export class ExecutiveAttentionModel {
 

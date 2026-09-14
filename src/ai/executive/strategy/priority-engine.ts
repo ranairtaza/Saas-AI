@@ -14,7 +14,7 @@ export const URGENCY_LOW = 25;
 export class PriorityEngine {
   /**
    * Deterministically calculates strategic priorities from existing business context.
-   * Does NOT use an LLM. Rules-based priority generation from Phase 40, 41, 42 signals.
+   * Rules-based priority generation derived from metrics, forecasts, and goal states.
    */
   static calculatePriorities(params: {
     goals: BusinessGoalData[];

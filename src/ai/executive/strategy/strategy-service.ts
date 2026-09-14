@@ -5,7 +5,7 @@ import { StrategicPriority, StrategicRisk, Phase43StrategicRecommendation } from
 
 export class ExecutiveStrategyService {
   /**
-   * Synthesizes the Executive Strategy layer deterministically from Phase 40-42 outputs.
+   * Synthesizes the Executive Strategy layer deterministically from metric, forecast, and goal outputs.
    */
   static synthesizeStrategy(params: {
     goals: any[];

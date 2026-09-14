@@ -1,5 +1,5 @@
 /**
- * LeadMachine Database Write Safety & Identity Gate (Phase 20)
+ * LeadMachine Database Write Safety & Identity Gate
  * 
  * Centralized server-only guard to prevent unintended database writes.
  * Enforces strict fail-closed semantics unless:

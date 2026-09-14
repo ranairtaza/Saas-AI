@@ -15,22 +15,21 @@ import {
 } from './executive-value-types';
 
 /**
- * Phase 33: Executive Value Layer
+ * Executive Value Layer
  * 
- * Central synthesis service that transforms the Phase 32 ExecutiveOperatingState
- * into commercially meaningful business intelligence.
+ * Central synthesis service that transforms the ExecutiveOperatingState
+ * into actionable, commercially meaningful business intelligence.
  * 
- * REUSES:
- * - BusinessHealthEvaluator (Phase 20) for health scoring
- * - Phase 31 priority semantics (no second priority formula)
- * - ActionImpactCalculator concepts for business impact
- * - Phase 27 governance verdicts (never bypassed)
+ * Integrates:
+ * - BusinessHealthEvaluator for holistic organizational health scoring
+ * - Standardized priority rankings across all alert sources
+ * - ActionImpactCalculator for quantifiable business impact
+ * - Explicit governance policies and stakeholder approvals
  * 
- * DOES NOT:
- * - Create new database models
- * - Approve, execute, or email autonomously
- * - Bypass governance or human execution gates
- * - Hardcode business-specific logic (domain-agnostic)
+ * Guarantees:
+ * - Pure, deterministic read-only computations
+ * - Strict preservation of governance verdicts and safety gates
+ * - Complete domain-agnostic enterprise design
  */
 export class ExecutiveValueLayer {
 
@@ -520,7 +519,7 @@ export class ExecutiveValueLayer {
     risks: ExecutiveRisk[],
     attentionItems: any[]
   ): CommercialValueSignals {
-    // Phase 35: ROI based on deterministic ExecutiveOutcomeAttribution graph
+    // ROI based on deterministic ExecutiveOutcomeAttribution graph
     let estimatedValueCreated: string | undefined = undefined;
     let roiEvidenceSufficiency: 'SUFFICIENT' | 'PARTIAL' | 'INSUFFICIENT_CAUSAL_EVIDENCE' = 'INSUFFICIENT_CAUSAL_EVIDENCE';
 

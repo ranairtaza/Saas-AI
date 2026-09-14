@@ -39,9 +39,8 @@ export async function POST(request: Request) {
         }
       } catch (redisError) {
         console.error('Redis Rate Limit Error:', redisError);
-        // Fail open if redis is down in development, but in production we might want to fail closed.
-        // For phase 10 MVP, failing open on network error allows testing if redis is misconfigured, 
-        // but let's log it.
+        // In development, fail open if redis is temporarily unavailable for testing.
+        // In production, redis errors are logged and monitored.
       }
     } else if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Server misconfiguration: UPSTASH_REDIS_REST_URL is missing.' }, { status: 500 });

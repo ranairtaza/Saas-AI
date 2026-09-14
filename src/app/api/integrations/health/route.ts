@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
     const healthStatuses: ProviderHealth[] = [];
 
     for (const connection of connections) {
-      // In a real app we might fetch the latest SyncJob for consecutive failures
-      // But for Phase 39 we can use standard logic:
+      // Fetch the latest sync jobs to compute consecutive failure rates and health metrics:
       const recentJobs = await prisma.syncJob.findMany({
         where: { integrationConnectionId: connection.id },
         orderBy: { createdAt: 'desc' },

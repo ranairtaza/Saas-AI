@@ -19,8 +19,8 @@ export interface BusinessIntelligenceReport {
   overallHealth: HealthStatus;
   metrics: MetricIntelligence[];
   anomalies: AnomalyResult[];
-  recommendations?: any[]; // Phase 18 recommendations
-  events?: any[]; // Phase 18 raw events
+  recommendations?: any[]; // Generated proactive recommendations
+  events?: any[]; // Raw business telemetry events
   generatedAt: Date;
 }
 
@@ -76,7 +76,7 @@ export class BusinessIntelligenceService {
 
     const overallHealth = BusinessHealthEngine.evaluateOverallHealth(healthStatuses);
 
-    // Phase 18: Fetch generated recommendations and events
+    // Fetch active recommendations and relevant business events
     const { prisma } = await import('../../lib/db');
     const recommendations = await prisma.executiveRecommendation.findMany({
       where: { organizationId, status: { in: ['PROPOSED', 'ACTIVE'] } },

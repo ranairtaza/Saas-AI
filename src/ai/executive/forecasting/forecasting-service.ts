@@ -24,7 +24,7 @@ export class ExecutiveForecastingService {
     // 1. Fetch authoritative BusinessContext
     const context = await BusinessContextBuilder.buildBusinessContext(organizationId);
 
-    // 2. Fetch historical Phase 29 learning signals
+    // 2. Fetch historical learning signals
     const learningSignals = await ExecutiveOutcomeService.listLearningSignals(organizationId);
 
     // 3. Compute deterministic forecasts, scenarios, and predictive risks
@@ -170,7 +170,7 @@ export class ExecutiveForecastingService {
   }
 
   /**
-   * Phase 41: Assembles complete Predictive Business Intelligence & Outlook
+   * Assembles complete Predictive Business Intelligence & Outlook
    * across canonical metrics using validated historical snapshots.
    */
   static async getPredictiveOutlook(organizationId: string): Promise<{

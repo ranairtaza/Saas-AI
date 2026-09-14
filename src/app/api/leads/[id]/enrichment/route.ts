@@ -155,7 +155,7 @@ export async function POST(
       scoreResult
     );
 
-    // 4. Compute Phase 21 Context Hash to check if outreach drafts become STALE
+    // 4. Compute context hash to check if outreach drafts become STALE
     const newContextHash = computeOutreachContextHash({
       leadId: lead.id,
       companyName: lead.companyName,

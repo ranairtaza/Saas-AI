@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     const state = await ExecutiveOperatingSystemService.getOperatingState(user.organizationId);
 
-    // Phase 33: Synthesize business value layer on top of operating state
+    // Synthesize business value layer on top of operating state
     const valueSynthesis = ExecutiveValueLayer.synthesize(state);
 
     return NextResponse.json({

@@ -1,13 +1,17 @@
 {
   "name": "leadmachine",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "Autonomous Executive Operating System & Lead Intelligence Platform",
+  "author": "Rana Irtaza",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "tsx tests/run_full_regression.ts",
+    "db:seed": "node seed.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.58",

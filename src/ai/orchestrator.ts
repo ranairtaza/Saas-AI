@@ -25,7 +25,7 @@ export class AIOrchestrator {
       status: 'SUCCESS',
     });
 
-    // 2.5. Inject Business Intelligence Context (Phase 17 MVP)
+    // 2.5. Inject Business Intelligence Context for executive reasoning
     const { BusinessContextBuilder } = await import('./executive/context-builder');
     const businessContext = await BusinessContextBuilder.buildBusinessContext(context.organizationId);
 
