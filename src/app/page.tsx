@@ -599,10 +599,10 @@ export default function Home() {
             <div className="p-8 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">Free Trial</h3>
-                <p className="text-sm text-muted-foreground">Test LeadMachine with full feature access for 14 days.</p>
+                <p className="text-sm text-muted-foreground">Test LeadMachine with full feature access for 7 days.</p>
                 <div className="pt-2">
                   <span className="text-4xl font-black">$0</span>
-                  <span className="text-muted-foreground text-sm"> / 14 days</span>
+                  <span className="text-muted-foreground text-sm"> / 7 days</span>
                 </div>
                 <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
                   <li className="flex items-center gap-2.5">
@@ -783,7 +783,7 @@ export default function Home() {
                 href="/register"
                 className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-primary hover:bg-white/95 font-bold text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
               >
-                Start Free 14-Day Trial
+                Start Free 7-Day Trial
               </Link>
               <Link
                 href="/login"
@@ -797,28 +797,98 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/60 bg-background/90 py-12 text-sm text-muted-foreground">
-        <div className="container mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <span className="text-white font-black text-sm">L</span>
+      {/* Enterprise Professional Footer */}
+      <footer className="border-t border-border/70 bg-card/60 backdrop-blur-md pt-16 pb-12 text-sm text-muted-foreground">
+        <div className="container mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-border/60">
+            {/* Col 1: Brand & Status */}
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md shadow-primary/20">
+                  <span className="text-white font-black text-xl leading-none">L</span>
+                </div>
+                <div>
+                  <span className="font-extrabold text-lg text-foreground tracking-tight">LeadMachine</span>
+                  <span className="block text-[10px] uppercase font-bold text-primary tracking-widest">Executive OS</span>
+                </div>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-sm">
+                The autonomous revenue operating system combining multi-source prospect discovery, firmographic AI enrichment, and governed executive decision models.
+              </p>
+              <div className="pt-2 flex flex-col gap-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold w-fit">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  All Systems 100% Operational
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
+                  <span>Official Inquiries:</span>
+                  <a href="mailto:contact@leadmachine.io" className="font-medium text-foreground hover:text-primary transition-colors underline">
+                    contact@leadmachine.io
+                  </a>
+                </div>
+              </div>
             </div>
-            <span className="font-bold text-foreground">LeadMachine OS</span>
+
+            {/* Col 2: Platform */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Platform</h4>
+              <ul className="space-y-2.5 text-xs">
+                <li><Link href="/discover" className="hover:text-foreground transition-colors">Lead Discovery Engine</Link></li>
+                <li><Link href="/leads" className="hover:text-foreground transition-colors">Enrichment & Verification</Link></li>
+                <li><Link href="/executive" className="hover:text-foreground transition-colors">Autonomous Executive OS</Link></li>
+                <li><a href="#features" className="hover:text-foreground transition-colors">Predictive BI Forecasting</a></li>
+                <li><Link href="/executive" className="hover:text-foreground transition-colors">Decision Queue</Link></li>
+                <li><Link href="/billing" className="hover:text-foreground transition-colors">Usage & Credits</Link></li>
+              </ul>
+            </div>
+
+            {/* Col 3: Integrations & API */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Integrations</h4>
+              <ul className="space-y-2.5 text-xs">
+                <li><Link href="/settings/providers" className="hover:text-foreground transition-colors">Stripe Billing</Link></li>
+                <li><Link href="/settings/providers" className="hover:text-foreground transition-colors">HubSpot CRM</Link></li>
+                <li><Link href="/settings/providers" className="hover:text-foreground transition-colors">Salesforce Connector</Link></li>
+                <li><Link href="/settings/providers" className="hover:text-foreground transition-colors">Apollo Provider</Link></li>
+                <li><Link href="/settings/providers" className="hover:text-foreground transition-colors">Inngest Workflows</Link></li>
+                <li><Link href="/api/test-protected" className="hover:text-foreground transition-colors">REST API & Webhooks</Link></li>
+              </ul>
+            </div>
+
+            {/* Col 4: Company & Contact */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Company & Contact</h4>
+              <ul className="space-y-2.5 text-xs">
+                <li><a href="#resources" className="hover:text-foreground transition-colors">Knowledge Base & FAQ</a></li>
+                <li>
+                  <a href="mailto:sales@leadmachine.io" className="hover:text-foreground transition-colors flex items-center gap-1">
+                    Enterprise Sales <ExternalLink className="h-3 w-3" />
+                  </a>
+                </li>
+                <li>
+                  <a href="mailto:support@leadmachine.io" className="hover:text-foreground transition-colors flex items-center gap-1">
+                    24/7 Priority Support <ExternalLink className="h-3 w-3" />
+                  </a>
+                </li>
+                <li><span className="text-muted-foreground/80">SOC2 Type II Certified</span></li>
+                <li><span className="text-muted-foreground/80">GDPR & CCPA Compliant</span></li>
+              </ul>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6 text-xs">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-            <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-            <a href="#resources" className="hover:text-foreground transition-colors">Resources</a>
-            <Link href="/login" className="hover:text-foreground transition-colors">Login</Link>
-            <Link href="/register" className="hover:text-foreground transition-colors">Sign Up</Link>
+          {/* Bottom sub-footer bar */}
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+            <p className="text-muted-foreground">
+              &copy; {new Date().getFullYear()} LeadMachine Inc. All rights reserved.
+            </p>
+            <div className="flex items-center gap-6">
+              <a href="#resources" className="hover:text-foreground transition-colors">Privacy Policy</a>
+              <a href="#resources" className="hover:text-foreground transition-colors">Terms of Service</a>
+              <a href="#resources" className="hover:text-foreground transition-colors">Security</a>
+              <span className="text-muted-foreground/60">•</span>
+              <span className="text-muted-foreground/80 font-mono">Region: US-East (iad1)</span>
+            </div>
           </div>
-
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} LeadMachine. All rights reserved.
-          </p>
         </div>
       </footer>
     </div>
