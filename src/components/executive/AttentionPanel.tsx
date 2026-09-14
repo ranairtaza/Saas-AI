@@ -58,10 +58,10 @@ export function AttentionPanel({ items, loading, error }: Props) {
   const highCount = items.filter((i) => i.priority === "HIGH").length;
 
   return (
-    <section aria-label="Attention Required" className="rounded-2xl border border-rose-200 bg-rose-50/30 dark:bg-rose-950/20 dark:border-rose-900 p-6 shadow-sm space-y-4">
+    <section id="attention" aria-label="Attention Required" className="rounded-2xl border border-rose-200 bg-rose-50/30 dark:bg-rose-950/20 dark:border-rose-900 p-4 sm:p-6 shadow-sm space-y-4">
       <SectionHeading
         title="Attention Required"
-        subtitle="Deterministic priority ranking — no AI scoring in this view"
+        subtitle="Ranked by business urgency & evidence — requires executive awareness"
         badge={
           <div className="flex items-center gap-1.5">
             <span className="flex h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse" />
@@ -88,10 +88,10 @@ export function AttentionPanel({ items, loading, error }: Props) {
                   ? "border-red-200 bg-white dark:bg-red-950/10"
                   : item.priority === "HIGH"
                   ? "border-amber-200 bg-white dark:bg-amber-950/10"
-                  : "border-rose-200/60 bg-white"
+                  : "border-rose-200/60 bg-white dark:bg-slate-900/40"
               }`}
             >
-              <div className="space-y-2 flex-1">
+              <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={item.priority} />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono">
@@ -99,12 +99,12 @@ export function AttentionPanel({ items, loading, error }: Props) {
                   </span>
                   {isBlocked && <GovernanceBadge verdict="BLOCKED" />}
                 </div>
-                <h3 className="text-sm font-bold text-foreground">{item.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{item.whyNow}</p>
+                <h3 className="text-sm font-bold text-foreground break-words">{item.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed break-words">{item.whyNow}</p>
               </div>
 
               {item.businessImpact != null && (
-                <div className="text-right shrink-0 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-100 px-3 py-2">
+                <div className="text-left md:text-right shrink-0 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-900/40 px-3 py-2 w-fit md:w-auto">
                   <span className="block text-[10px] font-bold text-muted-foreground uppercase">
                     Business Impact
                   </span>

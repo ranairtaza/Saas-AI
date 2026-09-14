@@ -166,10 +166,10 @@ export function ActionQueue({
   const DECIDED_STATUSES = ["APPROVED", "REJECTED", "DEFERRED", "EXECUTING", "COMPLETED", "CANCELLED"];
 
   return (
-    <section aria-label="Recommended Actions" className="space-y-6">
+    <section id="actions" aria-label="Recommended Actions" className="space-y-6">
       {/* Pending Action Execution Queue (human gate) */}
       {pendingActions.length > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-800 p-6 shadow-sm space-y-4">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-800 p-4 sm:p-6 shadow-sm space-y-4">
           <SectionHeading
             title="Governed Actions Awaiting Approval"
             subtitle="These actions cannot execute without explicit human approval. No execution has occurred."
@@ -189,29 +189,29 @@ export function ActionQueue({
                 key={action.id}
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-amber-200/70 bg-white dark:bg-amber-950/20 p-4 shadow-sm"
               >
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2">
                     <StatusBadge status={action.riskLevel ?? "MEDIUM"} />
                     <span className="text-xs font-semibold text-muted-foreground uppercase font-mono">
                       {action.actionName}
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-foreground break-words">
                     {action.humanDescription}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto">
                   <button
                     onClick={() => handleApprovePending(action.id)}
                     disabled={approvingPendingId === action.id}
-                    className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition shadow-sm"
+                    className="rounded-lg bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 disabled:opacity-50 transition shadow-sm min-h-[44px] flex items-center justify-center"
                   >
                     {approvingPendingId === action.id ? "Approving..." : "Approve & Execute"}
                   </button>
                   <button
                     onClick={() => handleRejectPending(action.id)}
                     disabled={rejectingPendingId === action.id}
-                    className="rounded-lg border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition"
+                    className="rounded-lg border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition min-h-[44px] flex items-center justify-center"
                   >
                     Reject
                   </button>

@@ -77,7 +77,7 @@ export function ValueScorecard({ valueSynthesis, loading, error }: Props) {
       : "bg-slate-100 text-slate-700 border-slate-200";
 
   return (
-    <section aria-label="Commercial Value Scorecard" className="rounded-2xl border border-violet-200 bg-card p-6 shadow-sm space-y-5">
+    <section id="metrics" aria-label="Commercial Value Scorecard" className="rounded-2xl border border-violet-200 dark:border-violet-900 bg-card p-4 sm:p-6 shadow-sm space-y-5">
       <SectionHeading
         title="Commercial Value Scorecard"
         subtitle="Activity counts are factual. Attributed value requires sufficient causal evidence — see disclaimer."

@@ -86,8 +86,9 @@ export function ExecutiveSnapshot({
 
   return (
     <section
+      id="overview"
       aria-label="Executive Snapshot"
-      className="rounded-3xl border border-slate-700/40 bg-gradient-to-br from-slate-900 via-slate-800 to-violet-950 p-6 sm:p-8 text-white shadow-2xl"
+      className="rounded-3xl border border-slate-700/40 bg-gradient-to-br from-slate-900 via-slate-800 to-violet-950 p-5 sm:p-8 text-white shadow-2xl"
     >
       {/* Evidence banner */}
       <div

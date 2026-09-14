@@ -184,30 +184,103 @@ export default function DashboardLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0 bg-background">
+        <main className="flex-1 flex flex-col h-screen overflow-hidden min-w-0 bg-background relative">
           {/* Top Header */}
           <header className="h-14 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 sticky top-0 z-10">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button 
-                className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                className="md:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
                 onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open Navigation Menu"
               >
-                <Menu size={20} />
+                <Menu size={22} />
               </button>
+              <div className="flex items-center gap-2 md:hidden">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                  L
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-sm tracking-tight leading-none">LeadMachine</span>
+                  <span className="text-[9px] font-semibold text-primary uppercase tracking-wider">Executive OS</span>
+                </div>
+              </div>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <ThemeToggle />
-              <button className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors">
+              <button 
+                className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Notifications"
+              >
                 <Bell size={18} />
               </button>
             </div>
           </header>
 
-          {/* Page Content */}
-          <div className="flex-1 overflow-auto p-4 md:p-8 md:pt-6">
+          {/* Page Content - with bottom padding on mobile for the fixed navigation bar */}
+          <div className="flex-1 overflow-auto p-3 sm:p-4 md:p-8 md:pt-6 pb-24 md:pb-8">
             {children}
           </div>
+
+          {/* Mobile Executive Bottom Navigation Bar */}
+          <nav 
+            aria-label="Executive Quick Navigation" 
+            className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border flex items-center justify-around h-16 px-1 safe-area-bottom shadow-lg"
+          >
+            <Link 
+              href="/executive" 
+              className={`flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 transition-colors ${
+                pathname === "/executive" ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <LayoutDashboard size={18} />
+              <span className="text-[10px] tracking-tight mt-1">Executive</span>
+            </Link>
+
+            <Link 
+              href="/executive#attention" 
+              className="flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <AlertTriangle size={18} />
+              <span className="text-[10px] tracking-tight mt-1">Attention</span>
+            </Link>
+
+            <Link 
+              href="/executive#decisions" 
+              className="flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <CheckSquare size={18} />
+              <span className="text-[10px] tracking-tight mt-1">Decisions</span>
+            </Link>
+
+            <Link 
+              href="/executive#metrics" 
+              className="flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <BarChart size={18} />
+              <span className="text-[10px] tracking-tight mt-1">Metrics</span>
+            </Link>
+
+            <Link 
+              href="/leads" 
+              className={`flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 transition-colors ${
+                pathname === "/leads" ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Users size={18} />
+              <span className="text-[10px] tracking-tight mt-1">Leads</span>
+            </Link>
+
+            <button 
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="flex flex-col items-center justify-center flex-1 h-full min-h-[44px] py-1 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="More navigation options"
+            >
+              <Menu size={18} />
+              <span className="text-[10px] tracking-tight mt-1">More</span>
+            </button>
+          </nav>
         </main>
       </div>
     </ToastProvider>
@@ -218,7 +291,7 @@ function NavItem({ href, icon, children, active }: { href: string, icon: React.R
   return (
     <Link 
       href={href} 
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold transition-all min-h-[40px] ${
         active 
           ? "bg-violet-600 text-white shadow-sm" 
           : "text-muted-foreground hover:text-foreground hover:bg-muted/50"

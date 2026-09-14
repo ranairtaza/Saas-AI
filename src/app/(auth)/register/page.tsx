@@ -47,7 +47,7 @@ export default function RegisterPage() {
     <div className="glass rounded-2xl p-8 shadow-xl">
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight mb-2 text-gradient">Create an account</h1>
-        <p className="text-muted-foreground text-sm">Start finding and closing more deals today</p>
+        <p className="text-muted-foreground text-sm">Start running your business smarter with the Executive OS</p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">

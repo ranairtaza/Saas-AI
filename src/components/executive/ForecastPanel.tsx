@@ -110,7 +110,7 @@ export function ForecastPanel({ forecastSummary, loading, error, onRefresh }: Pr
   };
 
   return (
-    <section aria-label="Forecast" className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
+    <section id="forecast" aria-label="Forecast" className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-6">
       <SectionHeading
         title="Forecast"
         subtitle="Statistical projections from telemetry baselines and learning signals. These are FORECASTS, not actuals."

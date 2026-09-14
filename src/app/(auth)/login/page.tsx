@@ -28,7 +28,7 @@ export default function LoginPage() {
       });
 
       if (res.ok) {
-        router.push("/dashboard");
+        router.push("/executive");
         router.refresh();
       } else {
         const data = await res.json();
@@ -45,7 +45,7 @@ export default function LoginPage() {
     <div className="glass rounded-2xl p-8 shadow-xl">
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold tracking-tight mb-2 text-gradient">Welcome back</h1>
-        <p className="text-muted-foreground text-sm">Enter your credentials to access your account</p>
+        <p className="text-muted-foreground text-sm">Sign in to your AI Executive Operating System</p>
       </div>
 
       <form onSubmit={onSubmit} className="space-y-4">

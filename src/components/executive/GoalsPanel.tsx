@@ -47,9 +47,9 @@ export function GoalsPanel({ goals, recommendations, loading, error, onProposeAc
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div id="goals" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Goals */}
-      <section aria-label="Strategic Business Goals" className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+      <section aria-label="Strategic Business Goals" className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-4">
         <SectionHeading
           title="Strategic Goals"
           subtitle="Milestone pacing monitor"

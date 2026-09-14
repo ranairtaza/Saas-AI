@@ -105,7 +105,7 @@ export function OutcomesPanel({
   const hasData = measuringOutcomes.length > 0 || completedOutcomes.length > 0;
 
   return (
-    <section aria-label="Outcomes and Results" className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-6">
+    <section id="outcomes" aria-label="Outcomes and Results" className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-sm space-y-6">
       <SectionHeading
         title="Results & Outcomes"
         subtitle="Expected vs. actual variance, closed-loop learning. Attribution semantics are conservative."

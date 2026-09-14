@@ -114,7 +114,7 @@ export function DecisionQueue({ decisions, loading, error, onApprove, onDefer, o
   }
 
   return (
-    <section aria-label="Decision Queue" className="rounded-2xl border border-violet-200/70 bg-violet-50/20 dark:bg-violet-950/10 dark:border-violet-900 p-6 shadow-sm space-y-4">
+    <section id="decisions" aria-label="Decision Queue" className="rounded-2xl border border-violet-200/70 bg-violet-50/20 dark:bg-violet-950/10 dark:border-violet-900 p-4 sm:p-6 shadow-sm space-y-4">
       <SectionHeading
         title="Decision Queue"
         subtitle="Executive decisions requiring human judgment"
@@ -139,14 +139,14 @@ export function DecisionQueue({ decisions, loading, error, onApprove, onDefer, o
               className={`flex flex-col md:flex-row md:items-start justify-between gap-4 rounded-xl border p-4 shadow-sm ${
                 isBlocked
                   ? "border-red-200 bg-red-50/30 dark:bg-red-950/10"
-                  : "border-violet-200/60 bg-white dark:bg-violet-950/5"
+                  : "border-violet-200/60 bg-white dark:bg-slate-900/40"
               }`}
             >
-              <div className="space-y-2 flex-1">
+              <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={dec.priority} />
                   <GovernanceBadge verdict={dec.governanceVerdict} />
-                  <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                  <span className="rounded bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground font-mono">
                     AUTH: {dec.requiredAuthority}
                   </span>
                   {dec.status === "DEFERRED" && (
@@ -154,16 +154,16 @@ export function DecisionQueue({ decisions, loading, error, onApprove, onDefer, o
                   )}
                 </div>
 
-                <h3 className="text-sm font-bold text-foreground">{dec.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{dec.description}</p>
+                <h3 className="text-sm font-bold text-foreground break-words">{dec.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed break-words">{dec.description}</p>
 
                 {dec.governanceExplanation && (
-                  <p className="text-[11px] text-muted-foreground italic bg-muted/30 p-2 rounded border border-border">
+                  <p className="text-[11px] text-muted-foreground italic bg-muted/30 p-2 rounded border border-border break-words">
                     {dec.governanceExplanation}
                   </p>
                 )}
 
-                <div className="flex flex-wrap items-center gap-4 pt-1 text-[11px] text-muted-foreground font-mono">
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] text-muted-foreground font-mono">
                   <span>
                     Domain: <b className="text-foreground">{dec.domain}</b>
                   </span>
@@ -177,15 +177,15 @@ export function DecisionQueue({ decisions, loading, error, onApprove, onDefer, o
                     </span>
                   )}
                   <span>
-                    Evidence Confidence:{" "}
+                    Confidence:{" "}
                     <b className="text-foreground">{dec.evidenceConfidence}%</b>
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 self-end md:self-start mt-2 md:mt-0">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto mt-3 md:mt-0">
                 {isBlocked ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs font-bold text-red-700 dark:text-red-400">
+                  <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 px-3 py-2 text-xs font-bold text-red-700 dark:text-red-400 text-center min-h-[44px] flex items-center justify-center">
                     🔒 Governance Blocked
                   </div>
                 ) : (
@@ -193,21 +193,21 @@ export function DecisionQueue({ decisions, loading, error, onApprove, onDefer, o
                     <button
                       onClick={() => handleApprove(dec.id)}
                       disabled={loading}
-                      className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-40 transition shadow-sm"
+                      className="rounded-lg bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-40 transition shadow-sm min-h-[44px] flex items-center justify-center"
                     >
                       {loading ? "Processing..." : "Approve"}
                     </button>
                     <button
                       onClick={() => handleDefer(dec.id)}
                       disabled={loading}
-                      className="rounded-lg border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 transition"
+                      className="rounded-lg border border-border bg-background px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 transition min-h-[44px] flex items-center justify-center"
                     >
                       Defer
                     </button>
                     <button
                       onClick={() => setRejectDialog({ id: dec.id, title: dec.title })}
                       disabled={loading}
-                      className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 transition"
+                      className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 px-4 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 transition min-h-[44px] flex items-center justify-center"
                     >
                       Reject
                     </button>

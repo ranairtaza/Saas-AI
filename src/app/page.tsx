@@ -23,6 +23,15 @@ import {
   Globe2,
   ChevronRight,
   ExternalLink,
+  Activity,
+  Target,
+  Compass,
+  CheckSquare,
+  Layers,
+  ShieldAlert,
+  FileText,
+  Workflow,
+  Cpu,
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -93,7 +102,7 @@ const SAMPLE_LEADS: Record<string, MockLead[]> = {
     },
     {
       name: 'PromptScale AI',
-      industry: 'Generative AI Developer Tools',
+      industry: 'Developer Tools / AI',
       location: 'San Francisco, CA',
       score: 94,
       initials: 'P',
@@ -132,26 +141,186 @@ const SAMPLE_LEADS: Record<string, MockLead[]> = {
   ],
 };
 
+const OPERATING_LOOP_STEPS = [
+  {
+    step: '1',
+    title: 'CONNECT',
+    subtitle: 'Business Data',
+    desc: 'Connect your business systems, CRM, Stripe, and customer telemetry into a single continuous stream.',
+    badge: 'Step 01',
+    tag: 'Stripe · HubSpot · Telemetry',
+  },
+  {
+    step: '2',
+    title: 'UNDERSTAND',
+    subtitle: 'Ground Truth',
+    desc: 'Synthesize raw signals into an unbiased, trustworthy picture of overall operational health and performance.',
+    badge: 'Step 02',
+    tag: 'Unified Health Metrics',
+  },
+  {
+    step: '3',
+    title: 'FORECAST',
+    subtitle: 'Future Outcomes',
+    desc: 'Identify mathematical trajectories, revenue pacing, and churn indicators before they impact your balance sheet.',
+    badge: 'Step 03',
+    tag: 'Statistical Projections',
+  },
+  {
+    step: '4',
+    title: 'PRIORITIZE',
+    subtitle: 'Executive Attention',
+    desc: 'Determine what genuinely demands executive attention, ranking anomalies and risks by concrete business impact.',
+    badge: 'Step 04',
+    tag: 'Attention Ranking',
+  },
+  {
+    step: '5',
+    title: 'PLAN',
+    subtitle: 'Structured Actions',
+    desc: 'Transform prioritized opportunities into concrete, accountable execution proposals with transparent rationale.',
+    badge: 'Step 05',
+    tag: 'Action Plan Staging',
+  },
+  {
+    step: '6',
+    title: 'APPROVE',
+    subtitle: 'Owner Control',
+    desc: 'You remain firmly in control. Review evidence, confidence scores, and risks before granting 1-click execution sign-off.',
+    badge: 'Step 06',
+    tag: 'Human Approval Gate',
+  },
+  {
+    step: '7',
+    title: 'EXECUTE',
+    subtitle: 'Controlled Action',
+    desc: 'Approved directives pass securely to integrated execution layers. Rejected proposals fail closed without execution.',
+    badge: 'Step 07',
+    tag: 'ActionEngine Delivery',
+  },
+];
+
+const EXECUTIVE_TEAM_MODULES = [
+  {
+    title: 'Business Intelligence',
+    role: 'Chief Intelligence',
+    desc: 'Gain instant clarity on revenue trajectories, customer health, lead pipeline velocity, and operational performance from a single pane of glass.',
+    icon: BarChart3,
+    color: 'from-blue-500/20 to-indigo-500/20 text-blue-500',
+  },
+  {
+    title: 'Forecasting Engine',
+    role: 'Chief Forecasting',
+    desc: 'Predict upcoming performance with statistical moving average models. Spot seasonal dips and cash runway changes months in advance.',
+    icon: TrendingUp,
+    color: 'from-emerald-500/20 to-teal-500/20 text-emerald-500',
+  },
+  {
+    title: 'Goal Management',
+    role: 'Chief Performance',
+    desc: 'Track strategic milestones with automated pacing telemetry. Immediately see whether quarterly targets are on track or lagging.',
+    icon: Target,
+    color: 'from-amber-500/20 to-orange-500/20 text-amber-500',
+  },
+  {
+    title: 'Strategic Prioritization',
+    role: 'Chief Strategy',
+    desc: 'Eliminate operational noise. Rank opportunities, operational bottlenecks, and emerging business risks by estimated financial exposure.',
+    icon: Compass,
+    color: 'from-purple-500/20 to-violet-500/20 text-purple-500',
+  },
+  {
+    title: 'Execution Planning',
+    role: 'Chief Operations',
+    desc: 'Turn strategic priorities into structured, step-by-step action plans with explicit success criteria and assigned execution deadlines.',
+    icon: Workflow,
+    color: 'from-pink-500/20 to-rose-500/20 text-rose-500',
+  },
+  {
+    title: 'Lead Intelligence',
+    role: 'Chief Pipeline',
+    desc: 'Discover, enrich, and qualify prospective B2B clients matching your ideal customer profile with multi-source verification and tech-stack filters.',
+    icon: Database,
+    color: 'from-cyan-500/20 to-blue-500/20 text-cyan-500',
+  },
+  {
+    title: 'Executive Decision Queue',
+    role: 'Governance Gate',
+    desc: 'Centralize every critical proposal in one executive approval hub. Review explainable evidence, confidence scores, and approve with 1 click.',
+    icon: CheckSquare,
+    color: 'from-violet-500/20 to-indigo-500/20 text-violet-500',
+  },
+];
+
+const OUTCOME_FEATURES = [
+  {
+    title: 'Understand Your Business',
+    category: 'Unified Telemetry',
+    desc: 'Consolidate disparate billing, sales, and operational data into one cohesive ground-truth dashboard. Never guess your true MRR or pipeline velocity again.',
+    icon: Activity,
+  },
+  {
+    title: "See What's Coming",
+    category: 'Predictive Trends',
+    desc: 'Deterministic Weighted Moving Average forecasting with mathematical zero-denominator protection provides realistic projections with confidence intervals.',
+    icon: TrendingUp,
+  },
+  {
+    title: 'Stay on Target',
+    category: 'Goal Pacing',
+    desc: 'Real-time pacing monitors calculate whether your current trajectory hits revenue and acquisition milestones, providing early warnings for off-track goals.',
+    icon: Target,
+  },
+  {
+    title: 'Know What Matters',
+    category: 'Attention Filtering',
+    desc: 'Deterministic ranking algorithms prioritize operational anomalies and risks by business impact, keeping your focus strictly on high-leverage issues.',
+    icon: ShieldAlert,
+  },
+  {
+    title: 'Decide With Confidence',
+    category: 'Decision Intelligence',
+    desc: 'Every recommendation is backed by auditable evidence and clear confidence ratings. No black-box guesses or opaque automated decisions.',
+    icon: CheckSquare,
+  },
+  {
+    title: 'Execute With Control',
+    category: 'Human-in-the-Loop',
+    desc: 'High-leverage proposals require owner authorization. Approved actions execute cleanly; rejected actions fail closed with complete audit logging.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Grow Your Pipeline',
+    category: 'Lead Discovery & Qualification',
+    desc: 'Direct integration with verified prospect databases and cascading verification ensures clean emails, verified contacts, and strong ICP alignment.',
+    icon: Users,
+  },
+];
+
 const FAQS = [
   {
-    q: 'How does LeadMachine discover and verify prospect data?',
-    a: 'LeadMachine connects to cascading, verified enterprise B2B data providers (including Apollo, proprietary real-time web crawlers, and DNS/tech detectors). Every email address undergoes multi-step SMTP handshakes, MX record validation, and bounce-rate checks so your deliverability stays above 98%.',
+    q: 'What makes LeadMachine an AI Executive Operating System rather than a simple CRM or lead scraper?',
+    a: 'Traditional tools only handle isolated tasks like scraping contacts or sending bulk emails. LeadMachine acts as a comprehensive operating system for the business owner: it unifies your live business telemetry (revenue, customer churn, pipeline velocity), generates statistical forecasts, identifies strategic risks, and stages actionable proposals in an Executive Decision Queue for your review and approval.',
   },
   {
-    q: 'What is the Autonomous Executive Operating System?',
-    a: 'Beyond basic lead scraping, LeadMachine synthesizes high-level business telemetry (revenue, customer churn, pipeline velocity) with operational lead actions. It uses deterministic forecasting algorithms and human-gated decision queues so you get executive clarity without runaway AI actions.',
+    q: 'How does human-in-the-loop governance protect my business?',
+    a: 'We believe AI recommends and humans decide. LeadMachine will never autonomously send outreach blitzes, adjust budgets, or execute business-altering mutations without your explicit authorization. Every staged proposal shows transparent rationale, estimated financial exposure, and confidence scores so you make informed decisions.',
   },
   {
-    q: 'Can I connect LeadMachine to my existing CRM and billing systems?',
-    a: 'Yes! We support native integrations with Stripe, HubSpot, Salesforce, and custom CSV imports. Real-time webhooks keep your deal stages and customer health scores perfectly synchronized.',
+    q: 'Can I use LeadMachine effectively from my smartphone?',
+    a: 'Yes. The Executive Command Center is designed mobile-first. Business owners can open the web app on their phone, review high-priority attention items, check key telemetry, and approve or reject pending decisions with one tap in seconds.',
   },
   {
-    q: 'How does human-in-the-loop governance work?',
-    a: 'All high-risk autonomous proposals (such as outbound email blitzes, budget allocations, or status changes) are submitted to your Decision Queue. You review the explainable evidence, confidence scores, and predicted ROI before granting 1-click execution approval.',
+    q: 'Are the metrics and forecasts in the product real or fabricated?',
+    a: 'We never fabricate metrics. All business health metrics, goals, and forecasts in the authenticated platform are computed from your connected data sources. If data is unavailable or telemetry is insufficient, the system explicitly displays "Unknown" or "Unavailable" rather than generating misleading zeroes or fake charts.',
   },
   {
-    q: 'Can I upgrade, downgrade, or cancel anytime?',
-    a: 'Absolutely. You can change or cancel your subscription at any time directly through the integrated Stripe Customer Portal in your billing settings. No long-term lock-in.',
+    q: 'How does the 7-day free trial work?',
+    a: 'You get full access to the Executive Operating System and 100 verified lead discovery credits for 7 days with zero setup fees. You can cancel anytime directly inside your billing settings before the trial ends.',
+  },
+  {
+    q: 'What business systems can I connect with LeadMachine?',
+    a: 'LeadMachine natively connects with Stripe, HubSpot, Salesforce, custom CSV imports, and enterprise data providers. Real-time webhooks keep your deal stages and operational metrics synchronized.',
   },
 ];
 
@@ -161,7 +330,6 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
-  const [activeTab, setActiveTab] = useState<'discover' | 'enrich' | 'executive'>('discover');
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,49 +345,51 @@ export default function Home() {
         setActiveCategory('default');
       }
       setIsSearching(false);
-    }, 450);
+    }, 400);
   };
 
   const currentLeads = SAMPLE_LEADS[activeCategory] || SAMPLE_LEADS.default;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden scroll-smooth">
-      {/* Dynamic ambient background glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] rounded-full bg-primary/20 blur-[130px] pointer-events-none -z-10" />
-      <div className="absolute top-[35%] right-[-12%] w-[40%] h-[40%] rounded-full bg-secondary/20 blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] left-[10%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[150px] pointer-events-none -z-10" />
+    <div className="min-h-screen bg-background flex flex-col relative overflow-x-hidden scroll-smooth">
+      {/* Ambient background glows */}
+      <div className="absolute top-[-8%] left-[-10%] w-[45%] h-[45%] rounded-full bg-primary/15 blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute top-[30%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/15 blur-[150px] pointer-events-none -z-10" />
+      <div className="absolute bottom-[-10%] left-[15%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[160px] pointer-events-none -z-10" />
 
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50 transition-all">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/25">
               <span className="text-white font-black text-2xl leading-none">L</span>
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-xl tracking-tight leading-tight">LeadMachine</span>
-              <span className="text-[10px] font-semibold text-primary uppercase tracking-widest">Executive OS</span>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Executive OS</span>
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-muted-foreground">
             <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
+            <a href="#executive-team" className="hover:text-foreground transition-colors">Executive Team</a>
+            <a href="#features" className="hover:text-foreground transition-colors">Capabilities</a>
+            <a href="#governance" className="hover:text-foreground transition-colors">Trust & Governance</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-            <a href="#resources" className="hover:text-foreground transition-colors">Resources</a>
+            <a href="#resources" className="hover:text-foreground transition-colors">FAQs</a>
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link
               href="/login"
-              className="hidden sm:inline-flex text-sm font-semibold hover:text-primary transition-colors px-3 py-2"
+              className="text-sm font-semibold hover:text-primary transition-colors px-3 py-2"
             >
               Sign In
             </Link>
             <Link
               href="/register"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-5 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-md shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
             >
               Start Free Trial
             </Link>
@@ -228,345 +398,387 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-6 pt-16 pb-20 lg:pt-24 lg:pb-32 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <section className="container mx-auto px-4 sm:px-6 pt-12 pb-16 lg:pt-20 lg:pb-28 relative z-10">
+        <div className="max-w-4xl mx-auto text-center space-y-7 animate-in slide-in-from-bottom-6 duration-700">
           
-          {/* Left Column: Value Prop & Interactive Search */}
-          <div className="lg:col-span-7 space-y-8 animate-in slide-in-from-bottom-6 duration-700">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide uppercase border border-primary/20 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 animate-spin text-primary" style={{ animationDuration: '3s' }} />
-              Autonomous B2B Pipeline & Executive Intelligence
-            </div>
-
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08]">
-              Target High-Value Leads. <br />
-              <span className="text-gradient">Automate the Close.</span>
-            </h1>
-
-            <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
-              LeadMachine unifies multi-source prospect discovery, AI firmographic enrichment, and deterministic executive decision intelligence so your revenue team closes faster.
-            </p>
-
-            {/* Live Interactive Search Box */}
-            <div className="bg-card border border-border/80 rounded-2xl p-2.5 shadow-xl shadow-black/5 dark:shadow-black/20">
-              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2">
-                <div className="relative flex-1 w-full">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by industry, ICP, or tech stack (e.g. 'Fintech', 'B2B SaaS')..."
-                    className="w-full pl-11 pr-4 py-3 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/70"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSearching}
-                  className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/25 disabled:opacity-70"
-                >
-                  {isSearching ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4" />
-                      Find Leads
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Quick tags */}
-              <div className="flex items-center gap-2 pt-2.5 px-2 overflow-x-auto text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground/80 flex-shrink-0">Popular:</span>
-                <button
-                  type="button"
-                  onClick={() => { setSearchQuery('B2B SaaS'); setActiveCategory('saas'); }}
-                  className="px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground transition-colors flex-shrink-0"
-                >
-                  B2B SaaS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSearchQuery('Fintech & Banking'); setActiveCategory('fintech'); }}
-                  className="px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground transition-colors flex-shrink-0"
-                >
-                  FinTech
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setSearchQuery('HealthTech'); setActiveCategory('default'); }}
-                  className="px-2.5 py-1 rounded-md bg-muted hover:bg-muted/80 text-foreground transition-colors flex-shrink-0"
-                >
-                  HealthTech
-                </button>
-              </div>
-            </div>
-
-            {/* Micro Benefits list */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="flex items-center gap-2.5 text-sm font-medium">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                <span>99.8% Email Accuracy</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-sm font-medium">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                <span>Executive Decision Queue</span>
-              </div>
-              <div className="flex items-center gap-2.5 text-sm font-medium">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                <span>No Credit Card Required</span>
-              </div>
-            </div>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide uppercase border border-primary/20 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            LeadMachine — The AI Operating System for Business Owners
           </div>
 
-          {/* Right Column: Live Interactive Lead Result Preview */}
-          <div className="lg:col-span-5 relative animate-in slide-in-from-right-6 duration-700 delay-150">
-            <div className="glass rounded-3xl p-6 shadow-2xl border border-border/80 relative z-10 overflow-hidden">
-              <div className="flex items-center justify-between pb-4 border-b border-border/60">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-                  </span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Live Verified Pipeline
-                  </span>
-                </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                  {currentLeads.length} Matches Found
-                </span>
-              </div>
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-foreground">
+            Know what is happening. <br />
+            Know what matters. <br />
+            <span className="text-gradient">Approve what happens next.</span>
+          </h1>
 
-              {/* Lead Cards List */}
-              <div className="space-y-3.5 pt-4">
-                {currentLeads.map((lead, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-2xl bg-card/90 border border-border/60 hover:border-primary/40 transition-all duration-200 shadow-sm hover:shadow-md group"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-11 h-11 rounded-xl border flex items-center justify-center font-bold text-base flex-shrink-0 ${lead.color}`}
-                        >
-                          {lead.initials}
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                            {lead.name}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">{lead.industry} • {lead.location}</p>
-                        </div>
-                      </div>
+          <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+            Turn your business data into clear decisions, strategic priorities, and controlled actions — from anywhere. An owner should never need to check five different tools just to understand what needs attention.
+          </p>
 
-                      {/* ICP Match score */}
-                      <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                          <span>{lead.score}%</span>
-                          <span className="text-[10px] font-medium uppercase">ICP</span>
-                        </div>
-                      </div>
-                    </div>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/register"
+              className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-bold rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
+            >
+              Start Running Your Business Smarter <ArrowRight className="h-4 w-4" />
+            </Link>
+            <a
+              href="#how-it-works"
+              className="w-full sm:w-auto px-8 py-4 border border-border bg-card/80 hover:bg-muted text-foreground text-base font-semibold rounded-xl flex items-center justify-center transition-colors shadow-sm"
+            >
+              See How It Works
+            </a>
+          </div>
 
-                    <div className="mt-3 pt-3 border-t border-border/40 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Mail className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
-                        <span className="truncate">{lead.email}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="h-3.5 w-3.5 text-primary/70 flex-shrink-0" />
-                        <span>{lead.phone}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
-                      {lead.tech.map((t, i) => (
-                        <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-muted font-medium text-foreground/80">
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Callout Footer */}
-              <div className="mt-5 pt-4 border-t border-border/60 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Enrich contacts with 1-click</span>
-                <Link
-                  href="/register"
-                  className="text-xs font-bold text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  Claim Leads <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-2xl mx-auto text-xs sm:text-sm font-medium text-muted-foreground">
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              <span>AI Recommends. You Decide.</span>
             </div>
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              <span>Evidence-Backed Rationale</span>
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
+              <span>7-Day Free Trial · No Lock-In</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Conceptual Loop Banner Preview */}
+        <div className="mt-16 max-w-5xl mx-auto rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Continuous Executive Operating Cycle
+              </span>
+            </div>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary w-fit">
+              Deterministic Governance · Human in the Loop
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center text-xs">
+            {[
+              { label: '1. Business Data', color: 'text-foreground' },
+              { label: '2. Ground Truth', color: 'text-foreground' },
+              { label: '3. Forecast', color: 'text-foreground' },
+              { label: '4. Goals', color: 'text-foreground' },
+              { label: '5. Strategy', color: 'text-foreground' },
+              { label: '6. Execution Plan', color: 'text-foreground' },
+              { label: '7. Human Approval', color: 'text-primary font-bold' },
+              { label: '8. Controlled Action', color: 'text-emerald-500 font-bold' },
+            ].map((node, i) => (
+              <div key={i} className="p-2.5 rounded-xl bg-muted/40 border border-border/50 flex flex-col items-center justify-center">
+                <span className={`text-[11px] ${node.color}`}>{node.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 border-t border-border/50 bg-muted/20 relative">
-        <div className="container mx-auto px-6">
+      {/* Section 4: The 7-Step Simple Loop */}
+      <section id="how-it-works" className="py-24 border-t border-border/50 bg-muted/20 relative">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-              Complete Revenue OS
+              The Simple Operating Loop
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
-              Engineered for Autonomous Growth
+              How The Executive OS Operates
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Everything you need to turn raw internet data into qualified sales meetings and executive certainty.
+              A transparent, closed-loop cycle turning raw business telemetry into prioritized decisions and controlled actions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {OPERATING_LOOP_STEPS.slice(0, 4).map((item) => (
+              <div key={item.step} className="p-6 rounded-3xl bg-card border border-border/80 shadow-sm hover:shadow-md transition-all space-y-3 relative group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-mono">
+                    {item.badge}
+                  </span>
+                  <span className="text-xl font-black text-muted-foreground/40 group-hover:text-primary transition-colors">
+                    {item.step}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
+                  <span className="text-xs font-semibold text-primary">{item.subtitle}</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  {item.desc}
+                </p>
+                <div className="pt-2 border-t border-border/40 text-[11px] font-mono text-muted-foreground">
+                  {item.tag}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 max-w-5xl mx-auto">
+            {OPERATING_LOOP_STEPS.slice(4).map((item) => (
+              <div key={item.step} className="p-6 rounded-3xl bg-card border border-border/80 shadow-sm hover:shadow-md transition-all space-y-3 relative group">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-primary/10 text-primary font-mono">
+                    {item.badge}
+                  </span>
+                  <span className="text-xl font-black text-muted-foreground/40 group-hover:text-primary transition-colors">
+                    {item.step}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">{item.title}</h3>
+                  <span className="text-xs font-semibold text-primary">{item.subtitle}</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  {item.desc}
+                </p>
+                <div className="pt-2 border-t border-border/40 text-[11px] font-mono text-muted-foreground">
+                  {item.tag}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Section 5: Your AI Executive Team */}
+      <section id="executive-team" className="py-24 border-t border-border/50 relative">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+            <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+              Integrated Intelligence Suite
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
+              Your AI Executive Team
+            </h2>
+            <p className="text-muted-foreground text-base sm:text-lg">
+              Not autonomous replacements for human staff, but specialized operating intelligence modules that synthesize signals, forecast trends, and stage governed decisions for the owner.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <Database className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Multi-Provider Enrichment</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Connects across Apollo, LinkedIn scraper adapters, tech stack detectors, and direct DNS queries to deliver 99.8% verified emails, phone numbers, and buying authority.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center group-hover:bg-secondary group-hover:text-white transition-colors">
-                <Bot className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Autonomous Decision Queue</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                High-leverage proposals are staged with explicit rationale, expected ROI, and risk classification. You maintain total human control with 1-click execution approvals.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                <TrendingUp className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Predictive BI & Forecasting</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Deterministic Weighted Moving Average (WMA) statistical forecasting models for ARR, MRR, customer growth, and churn with mathematical zero-denominator protection.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                <ShieldCheck className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Fail-Closed Governance</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Robust role-based access control (RBAC), database write safety gates, and immutable audit logs that guarantee your enterprise data boundaries are never compromised.
-              </p>
-            </div>
-
-            {/* Feature 5 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-colors">
-                <Zap className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Context-Aware Outreach</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Generates personalized email drafts tailored to each prospect’s role and tech stack. Outreach automatically flags as stale when prospect context mutates.
-              </p>
-            </div>
-
-            {/* Feature 6 */}
-            <div className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group">
-              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-colors">
-                <Globe2 className="h-6 w-6" />
-              </div>
-              <h3 className="text-xl font-bold">Bi-Directional CRM Sync</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Keep HubSpot, Salesforce, and Stripe in sync with background event workers powered by Inngest. No more manual data entry or dropped pipeline opportunities.
-              </p>
-            </div>
+            {EXECUTIVE_TEAM_MODULES.map((mod, idx) => {
+              const IconComp = mod.icon;
+              return (
+                <div
+                  key={idx}
+                  className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group"
+                >
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${mod.color} flex items-center justify-center shadow-sm`}>
+                    <IconComp className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-primary font-mono">
+                      {mod.role}
+                    </span>
+                    <h3 className="text-xl font-bold text-foreground mt-0.5">{mod.title}</h3>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {mod.desc}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="py-24 border-t border-border/50 relative">
-        <div className="container mx-auto px-6">
+      {/* Section 10: Features Organized Around Business Outcomes */}
+      <section id="features" className="py-24 border-t border-border/50 bg-muted/20 relative">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-              Simple 3-Step Flow
+              Proven Capabilities
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
-              How LeadMachine Works
+              Engineered for Business Outcomes
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Turn your ideal customer profile into revenue in three transparent phases.
+              Designed to eliminate guesswork, detect vulnerabilities early, and keep business owners in total control.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="relative p-8 rounded-3xl bg-card border border-border/80 space-y-5">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary text-primary-foreground font-black text-lg">
-                1
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {OUTCOME_FEATURES.map((feat, idx) => {
+              const IconComp = feat.icon;
+              return (
+                <div
+                  key={idx}
+                  className="p-8 rounded-3xl bg-card border border-border/70 hover:border-primary/40 hover:shadow-xl transition-all duration-300 space-y-4 group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                    <IconComp className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary font-mono">
+                      {feat.category}
+                    </span>
+                    <h3 className="text-xl font-bold mt-1">{feat.title}</h3>
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {feat.desc}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Interactive Pipeline Intelligence Demonstration */}
+          <div className="mt-16 rounded-3xl border border-border/80 bg-card p-6 sm:p-10 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-6">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">Live Pipeline Intelligence</span>
+                <h3 className="text-2xl font-bold mt-1">Lead Discovery & ICP Verification</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Experience how verified B2B prospect intelligence feeds directly into your Executive Operating System.
+                </p>
               </div>
-              <h3 className="text-2xl font-bold">Define & Discover</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Set your ICP filters: target industries, employee count, location, and tech stack. LeadMachine queries thousands of live web signals to curate prime prospects.
-              </p>
-              <div className="p-4 rounded-xl bg-muted/60 border border-border/50 text-xs font-mono text-muted-foreground">
-                Target: B2B SaaS • $1M-$10M ARR • Stripe + Next.js
-              </div>
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit">
+                {currentLeads.length} Verified Demonstrations
+              </span>
             </div>
 
-            {/* Step 2 */}
-            <div className="relative p-8 rounded-3xl bg-card border border-border/80 space-y-5">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-secondary text-white font-black text-lg">
-                2
+            {/* Interactive Search Box */}
+            <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-center gap-2">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Filter by ICP, industry, or tech stack (e.g. 'B2B SaaS', 'Fintech')..."
+                  className="w-full pl-11 pr-4 py-3 bg-muted/30 border border-border/60 rounded-xl text-sm focus:outline-none focus:border-primary placeholder:text-muted-foreground/70"
+                />
               </div>
-              <h3 className="text-2xl font-bold">Enrich & Qualify</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Cascading verification validates direct email addresses, decision-maker titles, and phone numbers while our scoring engine assigns an ICP fit grade.
+              <button
+                type="submit"
+                disabled={isSearching}
+                className="w-full sm:w-auto px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/25 disabled:opacity-70 min-h-[44px]"
+              >
+                {isSearching ? 'Filtering...' : 'Search ICP'}
+              </button>
+            </form>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              {currentLeads.map((lead, idx) => (
+                <div
+                  key={idx}
+                  className="p-4 rounded-2xl bg-card/90 border border-border/60 hover:border-primary/40 transition-all duration-200 shadow-sm space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-bold text-sm ${lead.color}`}>
+                        {lead.initials}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-foreground">{lead.name}</h4>
+                        <p className="text-xs text-muted-foreground">{lead.industry}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                      {lead.score}% ICP
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-border/40 text-xs text-muted-foreground space-y-1">
+                    <div className="truncate flex items-center gap-1.5">
+                      <Mail className="h-3 w-3 text-primary flex-shrink-0" />
+                      <span className="truncate">{lead.email}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="h-3 w-3 text-primary flex-shrink-0" />
+                      <span>{lead.employees} employees · {lead.location}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 11: Trust & Governance */}
+      <section id="governance" className="py-24 border-t border-border/50 relative">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto rounded-3xl border border-violet-500/30 bg-gradient-to-br from-card via-card to-violet-950/10 p-8 sm:p-12 shadow-2xl space-y-8">
+            <div className="text-center space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+                Guaranteed Control & Safety
+              </span>
+              <h2 className="text-3xl sm:text-5xl font-black tracking-tight">
+                AI Recommends. You Decide.
+              </h2>
+              <p className="text-muted-foreground text-base sm:text-lg max-w-2xl mx-auto">
+                LeadMachine is strictly governed. We reject runaway automation in favor of high-fidelity intelligence with absolute human authority.
               </p>
-              <div className="p-4 rounded-xl bg-muted/60 border border-border/50 text-xs font-mono text-muted-foreground">
-                Score: 96% Match • Verified Contact • High Intent
-              </div>
             </div>
 
-            {/* Step 3 */}
-            <div className="relative p-8 rounded-3xl bg-card border border-border/80 space-y-5">
-              <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500 text-white font-black text-lg">
-                3
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
+              <div className="p-6 rounded-2xl bg-card border border-border/70 space-y-3">
+                <div className="flex items-center gap-2.5 text-foreground font-bold">
+                  <ShieldCheck className="h-5 w-5 text-emerald-500" />
+                  <span>Auditable Evidence & Confidence</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Every proposed recommendation includes grounded telemetry evidence, clear rationale, and calculated confidence scores.
+                </p>
               </div>
-              <h3 className="text-2xl font-bold">Approve & Close</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Review proposed outreach sequences in your executive decision queue. Approve with 1-click and watch live replies appear in your dashboard.
-              </p>
-              <div className="p-4 rounded-xl bg-muted/60 border border-border/50 text-xs font-mono text-muted-foreground">
-                Queue Status: APPROVED • Outreach Scheduled
+
+              <div className="p-6 rounded-2xl bg-card border border-border/70 space-y-3">
+                <div className="flex items-center gap-2.5 text-foreground font-bold">
+                  <Lock className="h-5 w-5 text-violet-500" />
+                  <span>Fail-Closed Human Approval Gate</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Actions remain in WAITING status until explicitly authorized by an executive. Rejected proposals fail closed without execution.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-card border border-border/70 space-y-3">
+                <div className="flex items-center gap-2.5 text-foreground font-bold">
+                  <ShieldAlert className="h-5 w-5 text-amber-500" />
+                  <span>Financial Exposure Checks</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Proposals evaluate financial risk and budget exposure before staging, preventing unplanned capital expenditure or runaway outreach.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-card border border-border/70 space-y-3">
+                <div className="flex items-center gap-2.5 text-foreground font-bold">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  <span>Immutable Audit Logs</span>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                  Every proposal approval, deferral, and rejection is permanently recorded for enterprise governance and compliance.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Section 12: Pricing Page */}
       <section id="pricing" className="py-24 border-t border-border/50 bg-muted/10 relative">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
             <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-              Simple, Predictable Pricing
+              Predictable Executive Investment
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
-              Invest in Continuous Pipeline
+              Plans Built for Business Operating Capability
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Scale with transparent tiers. No hidden setup fees or long-term contracts.
+              Choose the tier suited to your operating complexity. All plans include the core Executive Operating System.
             </p>
 
             {/* Billing Toggle */}
@@ -577,7 +789,8 @@ export default function Home() {
               <button
                 type="button"
                 onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                className="w-14 h-8 rounded-full bg-muted border border-border p-1 relative transition-colors focus:outline-none"
+                className="w-14 h-8 rounded-full bg-muted border border-border p-1 relative transition-colors focus:outline-none min-h-[44px] flex items-center"
+                aria-label="Toggle Annual Billing"
               >
                 <div
                   className={`w-6 h-6 rounded-full bg-primary transition-transform ${
@@ -595,11 +808,11 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Starter / Trial Plan */}
+            {/* Free Trial */}
             <div className="p-8 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">Free Trial</h3>
-                <p className="text-sm text-muted-foreground">Test LeadMachine with full feature access for 7 days.</p>
+                <p className="text-sm text-muted-foreground">Test the Executive Operating System with full feature access for 7 days.</p>
                 <div className="pt-2">
                   <span className="text-4xl font-black">$0</span>
                   <span className="text-muted-foreground text-sm"> / 7 days</span>
@@ -607,38 +820,38 @@ export default function Home() {
                 <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>100 Verified Lead Credits</span>
+                    <span>Executive Command Center</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Basic AI Lead Qualification</span>
+                    <span>Attention & Decision Queue</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>1 Team Member Seat</span>
+                    <span>100 Verified Lead Discovery Credits</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>CSV Export</span>
+                    <span>Mobile Executive Home Access</span>
                   </li>
                 </ul>
               </div>
               <Link
                 href="/register"
-                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block"
+                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block min-h-[44px] flex items-center justify-center"
               >
-                Start Free Trial
+                Start Free 7-Day Trial
               </Link>
             </div>
 
-            {/* Pro Plan (Highlighted) */}
+            {/* Professional Plan (Highlighted) */}
             <div className="p-8 rounded-3xl bg-card border-2 border-primary shadow-2xl shadow-primary/15 relative flex flex-col justify-between space-y-6">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
                 Most Popular
               </div>
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">Professional</h3>
-                <p className="text-sm text-muted-foreground">Ideal for growing SaaS sales teams and revenue leaders.</p>
+                <p className="text-sm text-muted-foreground">For business owners who want complete visibility and AI-assisted decisions.</p>
                 <div className="pt-2">
                   <span className="text-4xl font-black">
                     ${billingCycle === 'annual' ? '39' : '49'}
@@ -648,19 +861,19 @@ export default function Home() {
                 <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-semibold text-foreground">2,500 Lead Credits / Month</span>
+                    <span className="font-semibold text-foreground">Executive Command & Decision Queue</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Autonomous Executive Decision Queue</span>
+                    <span>Predictive BI & ARR Trend Forecasting</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Predictive BI & ARR Forecasting</span>
+                    <span>2,500 Verified Lead Credits / Month</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Bi-Directional CRM Sync (HubSpot / Stripe)</span>
+                    <span>Goal Pacing & Strategic Prioritization</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
@@ -670,7 +883,7 @@ export default function Home() {
               </div>
               <Link
                 href="/register"
-                className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm text-center transition-all shadow-md shadow-primary/25 block"
+                className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm text-center transition-all shadow-md shadow-primary/25 block min-h-[44px] flex items-center justify-center"
               >
                 Get Started with Pro
               </Link>
@@ -680,7 +893,7 @@ export default function Home() {
             <div className="p-8 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">Business</h3>
-                <p className="text-sm text-muted-foreground">For scaling sales organizations that need maximum capacity.</p>
+                <p className="text-sm text-muted-foreground">For growing companies needing deeper intelligence, strategy, and governed execution.</p>
                 <div className="pt-2">
                   <span className="text-4xl font-black">
                     ${billingCycle === 'annual' ? '159' : '199'}
@@ -690,7 +903,7 @@ export default function Home() {
                 <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-semibold text-foreground">15,000 Lead Credits / Month</span>
+                    <span className="font-semibold text-foreground">Complete Executive OS & Multi-User Governance</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
@@ -698,11 +911,11 @@ export default function Home() {
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Dedicated Inngest Event Processing</span>
+                    <span>15,000 Verified Lead Credits / Month</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Unlimited Team Seats</span>
+                    <span>CRM & Stripe Bi-Directional Event Sync</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
@@ -712,7 +925,7 @@ export default function Home() {
               </div>
               <Link
                 href="/register"
-                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block"
+                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block min-h-[44px] flex items-center justify-center"
               >
                 Upgrade to Business
               </Link>
@@ -723,16 +936,16 @@ export default function Home() {
 
       {/* Resources & FAQ Section */}
       <section id="resources" className="py-24 border-t border-border/50 relative">
-        <div className="container mx-auto px-6 max-w-4xl">
+        <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           <div className="text-center space-y-4 mb-16">
             <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-              Knowledge & FAQs
+              Executive FAQ
             </span>
             <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
               Frequently Asked Questions
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Have questions about data privacy, AI governance, or integrations? We have answers.
+              Straightforward answers about executive governance, data telemetry, and owner control.
             </p>
           </div>
 
@@ -747,7 +960,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setActiveFaq(isOpen ? null : idx)}
-                    className="w-full p-6 text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg hover:text-primary transition-colors"
+                    className="w-full p-6 text-left flex items-center justify-between gap-4 font-bold text-base sm:text-lg hover:text-primary transition-colors min-h-[44px]"
                   >
                     <span>{faq.q}</span>
                     <ChevronDown
@@ -770,36 +983,36 @@ export default function Home() {
 
       {/* Bottom CTA Banner */}
       <section className="py-20 border-t border-border/50 bg-gradient-to-b from-transparent to-primary/5 relative">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto rounded-3xl bg-gradient-to-br from-primary/90 to-secondary/90 text-white p-10 sm:p-16 text-center space-y-6 shadow-2xl shadow-primary/20">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="max-w-4xl mx-auto rounded-3xl bg-gradient-to-br from-primary/95 to-secondary/95 text-white p-8 sm:p-14 text-center space-y-6 shadow-2xl shadow-primary/25">
             <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
-              Ready to Accelerate Your Sales Pipeline?
+              Start Running Your Business Smarter Today
             </h2>
-            <p className="text-white/80 text-base sm:text-lg max-w-xl mx-auto">
-              Join forward-thinking B2B companies discovering verified leads and automating executive decisions with LeadMachine today.
+            <p className="text-white/85 text-base sm:text-lg max-w-xl mx-auto">
+              Know what is happening. Know what matters. Approve what happens next. Try LeadMachine free for 7 days.
             </p>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/register"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-primary hover:bg-white/95 font-bold text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white text-primary hover:bg-white/95 font-bold text-base transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 min-h-[44px] flex items-center justify-center"
               >
-                Start Free 7-Day Trial
+                Start Running Your Business Smarter
               </Link>
               <Link
                 href="/login"
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-base transition-colors border border-white/20"
+                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-base transition-colors border border-white/25 min-h-[44px] flex items-center justify-center"
               >
                 Sign In to Workspace
               </Link>
             </div>
-            <p className="text-xs text-white/70">Instant setup • Cancel anytime • 100 free lead credits</p>
+            <p className="text-xs text-white/75">Instant setup · 7-day free trial · Cancel anytime · No credit card required to start</p>
           </div>
         </div>
       </section>
 
       {/* Enterprise Professional Footer */}
       <footer className="border-t border-border/70 bg-card/60 backdrop-blur-md pt-16 pb-12 text-sm text-muted-foreground">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-border/60">
             {/* Col 1: Brand & Status */}
             <div className="lg:col-span-2 space-y-4">
@@ -813,7 +1026,7 @@ export default function Home() {
                 </div>
               </div>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-sm">
-                The autonomous revenue operating system combining multi-source prospect discovery, firmographic AI enrichment, and governed executive decision models.
+                The AI Operating System for business owners. Turning business telemetry into clear priorities, evidence-backed decisions, and governed execution.
               </p>
               <div className="pt-2 flex flex-col gap-2">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold w-fit">
@@ -831,14 +1044,14 @@ export default function Home() {
 
             {/* Col 2: Platform */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Platform</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Executive OS</h4>
               <ul className="space-y-2.5 text-xs">
-                <li><Link href="/discover" className="hover:text-foreground transition-colors">Lead Discovery Engine</Link></li>
-                <li><Link href="/leads" className="hover:text-foreground transition-colors">Enrichment & Verification</Link></li>
-                <li><Link href="/executive" className="hover:text-foreground transition-colors">Autonomous Executive OS</Link></li>
-                <li><a href="#features" className="hover:text-foreground transition-colors">Predictive BI Forecasting</a></li>
-                <li><Link href="/executive" className="hover:text-foreground transition-colors">Decision Queue</Link></li>
-                <li><Link href="/billing" className="hover:text-foreground transition-colors">Usage & Credits</Link></li>
+                <li><Link href="/executive" className="hover:text-foreground transition-colors">Executive Command Center</Link></li>
+                <li><Link href="/executive#attention" className="hover:text-foreground transition-colors">Attention & Priority Ranking</Link></li>
+                <li><Link href="/executive#decisions" className="hover:text-foreground transition-colors">Human Decision Queue</Link></li>
+                <li><Link href="/executive#forecast" className="hover:text-foreground transition-colors">Predictive BI & Forecasting</Link></li>
+                <li><Link href="/executive#goals" className="hover:text-foreground transition-colors">Strategic Goal Management</Link></li>
+                <li><Link href="/leads" className="hover:text-foreground transition-colors">Lead Discovery & Pipeline</Link></li>
               </ul>
             </div>
 
@@ -857,20 +1070,21 @@ export default function Home() {
 
             {/* Col 4: Company & Contact */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Company & Contact</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Governance & Contact</h4>
               <ul className="space-y-2.5 text-xs">
-                <li><a href="#resources" className="hover:text-foreground transition-colors">Knowledge Base & FAQ</a></li>
+                <li><a href="#governance" className="hover:text-foreground transition-colors">Trust & Safety Model</a></li>
+                <li><a href="#resources" className="hover:text-foreground transition-colors">Executive Knowledge Base</a></li>
                 <li>
                   <a href="mailto:sales@leadmachine.io" className="hover:text-foreground transition-colors flex items-center gap-1">
-                    Enterprise Sales <ExternalLink className="h-3 w-3" />
+                    Enterprise Inquiries <ExternalLink className="h-3 w-3" />
                   </a>
                 </li>
                 <li>
                   <a href="mailto:support@leadmachine.io" className="hover:text-foreground transition-colors flex items-center gap-1">
-                    24/7 Priority Support <ExternalLink className="h-3 w-3" />
+                    Executive Support <ExternalLink className="h-3 w-3" />
                   </a>
                 </li>
-                <li><span className="text-muted-foreground/80">SOC2 Type II Certified</span></li>
+                <li><span className="text-muted-foreground/80">SOC2 Type II Certified Standards</span></li>
                 <li><span className="text-muted-foreground/80">GDPR & CCPA Compliant</span></li>
               </ul>
             </div>
@@ -884,7 +1098,7 @@ export default function Home() {
             <div className="flex items-center gap-6">
               <a href="#resources" className="hover:text-foreground transition-colors">Privacy Policy</a>
               <a href="#resources" className="hover:text-foreground transition-colors">Terms of Service</a>
-              <a href="#resources" className="hover:text-foreground transition-colors">Security</a>
+              <a href="#governance" className="hover:text-foreground transition-colors">Security & Governance</a>
               <span className="text-muted-foreground/60">•</span>
               <span className="text-muted-foreground/80 font-mono">Region: US-East (iad1)</span>
             </div>
