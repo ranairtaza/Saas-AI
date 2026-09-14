@@ -4,8 +4,7 @@ const getSecret = () => {
   const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn('[Security Warning] JWT_SECRET or SESSION_SECRET not configured in production environment variables.');
-      return new TextEncoder().encode('leadmachine_production_secure_signing_key_fallback_2026');
+      throw new Error('Production security error: Missing JWT_SECRET or SESSION_SECRET environment variable.');
     }
     return new TextEncoder().encode('fallback_secret_for_dev_only');
   }

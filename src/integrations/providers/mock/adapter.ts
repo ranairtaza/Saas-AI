@@ -10,7 +10,10 @@ export class MockIntegrationProvider implements IntegrationProvider {
   type = 'ERP';
 
   async connect(organizationId: string, credentials: any): Promise<boolean> {
-    return true; // Mock connection always succeeds
+    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MOCK_INTEGRATION_TESTS !== 'true') {
+      throw new Error('MockIntegrationProvider is permanently quarantined and cannot be connected in production environments.');
+    }
+    return true;
   }
 
   async disconnect(organizationId: string): Promise<boolean> {
@@ -23,11 +26,11 @@ export class MockIntegrationProvider implements IntegrationProvider {
 
   async sync(organizationId: string, connectionId: string): Promise<SyncResult> {
     // Strictly prevent synthetic data fabrication in production to uphold deterministic data integrity
-    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SYNTHETIC_MOCK_DATA !== 'true') {
+    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MOCK_INTEGRATION_TESTS !== 'true') {
       return {
         success: false,
         recordsProcessed: 0,
-        errorMessage: 'Synthetic data generation is disabled in production to uphold deterministic telemetry integrity. Please connect real business telemetry via Stripe or CRM under Settings.',
+        errorMessage: 'MockIntegrationProvider is quarantined from production. Randomized metrics cannot enter production telemetry.',
       };
     }
 

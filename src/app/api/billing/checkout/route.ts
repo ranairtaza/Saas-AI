@@ -15,6 +15,13 @@ export async function POST(request: Request) {
     if (!plan || !plan.active) return NextResponse.json({ error: 'Invalid or inactive plan' }, { status: 400 });
     if (!plan.stripePriceId) return NextResponse.json({ error: 'Plan does not have a Stripe price configured' }, { status: 400 });
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Stripe payments are not configured on this deployment. Please configure STRIPE_SECRET_KEY in environment variables.' },
+        { status: 503 }
+      );
+    }
+
     const customerId = await getOrCreateStripeCustomer(user.organizationId, user.email, user.name || user.email);
 
     const protocol = request.headers.get('x-forwarded-proto') || 'http';

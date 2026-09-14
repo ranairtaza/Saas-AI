@@ -31,10 +31,20 @@ export async function proxy(request: NextRequest) {
   if (sessionCookie) {
     try {
       const { jwtVerify } = await import('jose');
-      const secretVal = process.env.JWT_SECRET || process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? 'leadmachine_production_secure_signing_key_fallback_2026' : 'fallback_secret_for_dev_only');
-      const secret = new TextEncoder().encode(secretVal);
-      await jwtVerify(sessionCookie, secret);
-      hasSessionCookie = true;
+      const secretVal = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+      if (!secretVal) {
+        if (process.env.NODE_ENV === 'production') {
+          hasSessionCookie = false;
+        } else {
+          const secret = new TextEncoder().encode('fallback_secret_for_dev_only');
+          await jwtVerify(sessionCookie, secret);
+          hasSessionCookie = true;
+        }
+      } else {
+        const secret = new TextEncoder().encode(secretVal);
+        await jwtVerify(sessionCookie, secret);
+        hasSessionCookie = true;
+      }
     } catch (e) {
       // Fallback for existing opaque session tokens (64-char hex strings)
       if (sessionCookie.length === 64) {

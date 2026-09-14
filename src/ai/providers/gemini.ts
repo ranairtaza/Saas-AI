@@ -1,6 +1,6 @@
 import { LLMProvider, ChatMessage, AIContext, CompletionOptions } from './provider';
 import { generateText } from 'ai';
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 
 export class GeminiProvider implements LLMProvider {
   async generateCompletion(
@@ -15,12 +15,13 @@ export class GeminiProvider implements LLMProvider {
         message: {
           role: 'assistant',
           content:
-            'Executive AI Assistant is operating in baseline telemetry mode. Continuous business monitoring, anomaly detection, predictive forecasting, and human approval gates are active. To enable conversational generative reasoning, configure your Gemini API key under environment settings.',
+            'Executive AI Assistant is operating in baseline deterministic mode. Continuous business monitoring, anomaly detection, predictive forecasting, and human approval gates are active. To enable conversational generative reasoning, configure your Gemini API key under environment settings.',
         },
       };
     }
 
     try {
+      const google = createGoogleGenerativeAI({ apiKey });
       const systemMsg = messages.find((m) => m.role === 'system');
       const nonSystemMsgs = messages.filter((m) => m.role !== 'system');
 
@@ -30,7 +31,7 @@ export class GeminiProvider implements LLMProvider {
       }));
 
       const { text } = await generateText({
-        model: google('gemini-1.5-flash-latest'),
+        model: google('gemini-1.5-flash'),
         system: systemMsg?.content,
         messages: conversationHistory,
         temperature: options?.temperature ?? 0.3,

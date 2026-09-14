@@ -21,8 +21,11 @@ export interface AIProvider {
 
 export class DefaultGeminiProvider implements AIProvider {
   async generateStructured<T>(schema: z.ZodType<T>, prompt: string): Promise<T> {
+    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+    const { createGoogleGenerativeAI } = await import('@ai-sdk/google');
+    const google = createGoogleGenerativeAI({ apiKey });
     const { object } = await generateObject({
-      model: google('gemini-1.5-flash-latest'),
+      model: google('gemini-1.5-flash'),
       schema: schema as any,
       prompt
     });
@@ -43,15 +46,15 @@ export class AIQualificationService {
   ): Promise<AIQualificationResult> {
     
     // When Gemini API key is not configured in environment,
-    // return grounded baseline summary without failing.
+    // return an explicit unavailable state without fabricating an AI summary.
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && !process.env.GEMINI_API_KEY) {
       return {
-        summary: "Preliminary qualification summary: Lead evaluated based on deterministic data points. Detailed generative analysis activates with configured Gemini API key.",
-        strengths: ["Deterministic scoring criteria satisfied"],
-        weaknesses: [lead.phone ? "Pending contact verification" : "Contact phone not yet provided"],
-        missingInformation: [!lead.phone ? "Phone" : null, !lead.location ? "Location" : null].filter(Boolean) as string[],
-        recommendedAction: "Review lead profile and verify contact outreach channel.",
-        confidence: "MEDIUM"
+        summary: "AI qualification unavailable: Gemini API key is not configured in deployment settings.",
+        strengths: [],
+        weaknesses: [],
+        missingInformation: ["Gemini API Key (Not Configured)"],
+        recommendedAction: "Configure GEMINI_API_KEY in environment settings to enable automated AI qualification summaries.",
+        confidence: "LOW"
       };
     }
 
@@ -90,9 +93,16 @@ export class AIQualificationService {
       `;
 
       return await provider.generateStructured(AIQualificationSchema, prompt);
-    } catch (error) {
-      console.error('[AIQualificationService] Error generating qualification:', error);
-      throw error;
+    } catch (error: any) {
+      console.error('[AIQualificationService] Error generating qualification:', error?.message || error);
+      return {
+        summary: `AI qualification provider error: Unable to evaluate lead via generative model endpoint.`,
+        strengths: [],
+        weaknesses: [],
+        missingInformation: ["Provider Error"],
+        recommendedAction: "Review API key configuration and model status in settings.",
+        confidence: "LOW"
+      };
     }
   }
 }

@@ -8,6 +8,13 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Customer billing portal is unavailable because Stripe is not configured on this deployment.' },
+        { status: 503 }
+      );
+    }
+
     const billing = await prisma.organizationBilling.findUnique({
       where: { organizationId: user.organizationId }
     });

@@ -104,11 +104,19 @@ export class SyncManager {
   }
 }
 
-import { mockProvider } from '../providers/mock/adapter';
 import { stripeAdapter } from '../providers/stripe/adapter';
 
 // Singleton instance
 export const syncManager = new SyncManager();
-syncManager.registerProvider(mockProvider);
 syncManager.registerProvider(stripeAdapter);
+
+// Strictly quarantine mock provider: never registered in production runtime
+if (process.env.NODE_ENV === 'test' || process.env.ENABLE_MOCK_INTEGRATION_TESTS === 'true') {
+  try {
+    const { mockProvider } = require('../providers/mock/adapter');
+    syncManager.registerProvider(mockProvider);
+  } catch (e) {
+    // Quarantined
+  }
+}
 

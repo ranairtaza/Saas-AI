@@ -22,7 +22,7 @@ export async function GET(request: Request) {
           monthlyPrice: 4900,
           monthlyCredits: 500,
           active: true,
-          stripePriceId: process.env.STRIPE_PRICE_PROFESSIONAL || null,
+          stripePriceId: process.env.STRIPE_PRICE_ID_PRO || process.env.STRIPE_PRICE_PROFESSIONAL || null,
           features: JSON.stringify([
             'Executive Command Center',
             'Continuous Telemetry & Health Monitoring',
@@ -38,7 +38,7 @@ export async function GET(request: Request) {
           monthlyPrice: 19900,
           monthlyCredits: 2500,
           active: true,
-          stripePriceId: process.env.STRIPE_PRICE_BUSINESS || null,
+          stripePriceId: process.env.STRIPE_PRICE_ID_BUSINESS || process.env.STRIPE_PRICE_BUSINESS || null,
           features: JSON.stringify([
             'Everything in Professional',
             'Multi-Integration Telemetry (Stripe + CRM)',
