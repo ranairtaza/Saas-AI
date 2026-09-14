@@ -57,6 +57,17 @@ export async function POST(req: Request) {
         },
       });
 
+      // Initialize default CreditAccount for free trial
+      await tx.creditAccount.create({
+        data: {
+          organizationId: org.id,
+          availableBalance: 100,
+          reservedBalance: 0,
+          lifetimeGranted: 100,
+          lifetimeConsumed: 0,
+        },
+      });
+
       const session = await tx.session.create({
         data: {
           sessionToken: hashedSessionToken,
@@ -85,10 +96,32 @@ export async function POST(req: Request) {
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Registration error:', error);
+    const msg = error?.message || '';
+    if (
+      msg.includes("Can't reach database") ||
+      msg.includes('database server') ||
+      msg.includes('PrismaClientInitializationError') ||
+      error?.code === 'P1001' ||
+      error?.code === 'P1000' ||
+      error?.code === 'P1017'
+    ) {
+      return NextResponse.json(
+        { error: 'Database service is temporarily unreachable. Please ensure PostgreSQL DATABASE_URL is configured in your deployment settings.' },
+        { status: 503 }
+      );
+    }
+
+    if (error?.code === 'P2021' || msg.includes('does not exist')) {
+      return NextResponse.json(
+        { error: 'Database schema is not yet initialized. Please run `npx prisma migrate deploy`.' },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Internal server error.' },
+      { error: 'Registration failed due to a server configuration issue. Please try again.' },
       { status: 500 }
     );
   }

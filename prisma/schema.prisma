@@ -903,9 +903,9 @@ model ExecutiveDecisionAudit {
 // --- PHASE 29 AI BUSINESS EXECUTIVE: LEARNING SIGNALS & HISTORICAL INTELLIGENCE ---
 
 model ExecutiveLearningSignal {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   decisionId         String?
   outcomeId          String?

@@ -22,6 +22,15 @@ export class MockIntegrationProvider implements IntegrationProvider {
   }
 
   async sync(organizationId: string, connectionId: string): Promise<SyncResult> {
+    // Strictly prevent synthetic data fabrication in production to uphold deterministic data integrity
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SYNTHETIC_MOCK_DATA !== 'true') {
+      return {
+        success: false,
+        recordsProcessed: 0,
+        errorMessage: 'Synthetic data generation is disabled in production to uphold deterministic telemetry integrity. Please connect real business telemetry via Stripe or CRM under Settings.',
+      };
+    }
+
     try {
       let recordsProcessed = 0;
       const today = new Date();

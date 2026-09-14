@@ -30,7 +30,7 @@ export default function RegisterPage() {
       });
 
       if (res.ok) {
-        router.push("/dashboard");
+        router.push("/onboarding");
         router.refresh();
       } else {
         const data = await res.json();

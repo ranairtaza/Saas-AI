@@ -487,7 +487,7 @@ async function runPhase29Tests() {
   const schemaPath = path.join(process.cwd(), 'prisma/schema.prisma');
   const schemaContent = fs.readFileSync(schemaPath, 'utf8');
   assert(schemaContent.includes('model ExecutiveLearningSignal'), 'Prisma schema includes ExecutiveLearningSignal');
-  assert(schemaContent.includes('organizationId     String'), 'ExecutiveLearningSignal strictly belongs to Organization');
+  assert(/organizationId\s+String/.test(schemaContent), 'ExecutiveLearningSignal strictly belongs to Organization');
   assert(schemaContent.includes('@@index([organizationId, domain])'), 'ExecutiveLearningSignal indexes organizationId');
 
   // --------------------------------------------------------------------------

@@ -55,7 +55,7 @@ export class ScenarioSimulationEngine {
       // 1. Input Validation & Bounds Clamping
       const safeChange = this.clamp(input.changeValue, input.minValue ?? -100, input.maxValue ?? 500);
 
-      let baselineVal = baselineSnapshot[input.metric] ?? input.baselineValue ?? 0;
+      let baselineVal = input.baselineValue !== undefined ? input.baselineValue : (baselineSnapshot[input.metric] ?? 0);
       let projectedVal = baselineVal;
 
       if (input.variableType === 'PERCENTAGE_CHANGE' || input.variableType === 'CONVERSION_CHANGE' || input.variableType === 'VOLUME_CHANGE') {

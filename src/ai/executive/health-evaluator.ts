@@ -101,7 +101,7 @@ export class BusinessHealthEvaluator {
     // Unassigned backlog penalty
     const unassigned = (context.telemetry.metrics.unassignedHighPriorityLeads?.value || 0);
     if ((unassigned ?? 0) > 0) {
-      const penalty = Math.min(50, (unassigned || 0) * 15);
+      const penalty = Math.min(45, (unassigned || 0) * 10);
       score -= penalty;
       factors.push(`${unassigned} unassigned high-priority lead backlog (-${penalty} pts)`);
     } else {

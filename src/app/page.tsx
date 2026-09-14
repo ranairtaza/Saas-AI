@@ -351,11 +351,13 @@ export default function Home() {
   const currentLeads = SAMPLE_LEADS[activeCategory] || SAMPLE_LEADS.default;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative overflow-x-hidden scroll-smooth">
-      {/* Ambient background glows */}
-      <div className="absolute top-[-8%] left-[-10%] w-[45%] h-[45%] rounded-full bg-primary/15 blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute top-[30%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/15 blur-[150px] pointer-events-none -z-10" />
-      <div className="absolute bottom-[-10%] left-[15%] w-[50%] h-[50%] rounded-full bg-primary/10 blur-[160px] pointer-events-none -z-10" />
+    <div className="min-h-screen bg-background flex flex-col relative overflow-hidden scroll-smooth">
+      {/* Ambient background glows - strictly contained within page bounds */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-primary/15 blur-[140px]" />
+        <div className="absolute top-1/3 -right-40 w-[500px] h-[500px] rounded-full bg-secondary/15 blur-[150px]" />
+        <div className="absolute bottom-10 left-1/4 w-[500px] h-[500px] rounded-full bg-primary/10 blur-[160px]" />
+      </div>
 
       {/* Navigation Header */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50 transition-all">
