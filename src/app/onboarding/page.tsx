@@ -201,6 +201,9 @@ export default function OnboardingPage() {
                         <option value="B2B SaaS">B2B SaaS / Software</option>
                         <option value="Professional Services">Agency & Professional Services</option>
                         <option value="E-Commerce">E-Commerce & D2C</option>
+                        <option value="Manufacturing & Industrial">Manufacturing / Factory</option>
+                        <option value="Textiles & Apparel">Textiles / Clothing Brand</option>
+                        <option value="Local Retail & Services">Local Retail / Brick & Mortar</option>
                         <option value="Healthcare & FinTech">FinTech / Healthcare</option>
                         <option value="Other">Other Enterprise</option>
                       </select>
@@ -217,6 +220,8 @@ export default function OnboardingPage() {
                       >
                         <option value="Subscriptions (ARR/MRR)">Recurring Subscriptions (ARR/MRR)</option>
                         <option value="Monthly Retainers">Fixed Retainer Contracts</option>
+                        <option value="One-Time Sales">One-Time Sales (Physical Goods)</option>
+                        <option value="Wholesale / B2B Distribution">Wholesale / B2B Distribution</option>
                         <option value="Usage-Based">Usage-Based Pricing</option>
                         <option value="Transaction-Fee">Transactional Revenue</option>
                       </select>
