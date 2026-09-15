@@ -56,9 +56,19 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen bg-background flex flex-col items-center py-12 px-4 sm:px-8 overflow-y-auto">
+      <div className="w-full max-w-2xl my-auto">
         
+        {/* Logo */}
+        <div className="flex justify-center mb-10">
+          <div className="flex items-center gap-2.5 font-bold text-2xl tracking-tight text-foreground">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
+              <ShieldCheck size={20} />
+            </div>
+            LeadMachine
+          </div>
+        </div>
+
         {/* Step Indicator Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
