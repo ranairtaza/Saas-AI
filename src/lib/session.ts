@@ -30,6 +30,7 @@ export async function getCurrentUser() {
           email: true,
           name: true,
           role: true,
+          onboarded: true,
           organizationId: true,
           organization: {
             select: {
