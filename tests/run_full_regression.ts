@@ -22,6 +22,7 @@ const testSuites = [
   'tests/verify_phase34_strict.ts',
   'tests/verify_phase35_strict.ts',
   'tests/verify_phase36.ts',
+  'tests/verify_phase37.ts',
   'tests/verify_phase38.ts',
   'tests/verify_phase39.ts',
   'tests/verify_phase40.ts',
@@ -29,12 +30,14 @@ const testSuites = [
   'tests/verify_phase42.ts',
   'tests/verify_phase43.ts',
   'tests/verify_phase44.ts',
+  'tests/verify_phase45.ts',
   'tests/verify_phase46.ts',
   'tests/verify_phase47.ts',
+  'tests/verify_phase48.ts',
 ];
 
 console.log('==========================================================================');
-console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 47)`);
+console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 48)`);
 console.log('==========================================================================\n');
 
 let allPassed = true;
@@ -73,4 +76,3 @@ if (allPassed) {
   console.log(`🎉 ALL ${testSuites.length} TEST SUITES PASSED CLEANLY WITH ZERO REGRESSIONS!`);
   console.log('==========================================================================');
 }
-

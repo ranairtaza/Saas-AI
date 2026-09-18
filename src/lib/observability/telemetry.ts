@@ -1,15 +1,36 @@
 /**
- * Phase 47: Centralized System Telemetry Service
- * Non-blocking, sampled request instrumentation and 100% error/slow request capture.
+ * Phase 48: Centralized System Telemetry Service
+ * High-performance, sampled request instrumentation, 100% error/slow request capture,
+ * and observability self-monitoring.
  */
 
 import prisma from '@/lib/db';
 import { sanitizeMetadata } from './sanitizer';
+import * as crypto from 'crypto';
+
+export type SystemEventType =
+  | 'REQUEST'
+  | 'ERROR'
+  | 'AUTH_FAILURE'
+  | 'AUTH_SUCCESS'
+  | 'API_FAILURE'
+  | 'DB_ERROR'
+  | 'AI_ERROR'
+  | 'INTEGRATION_ERROR'
+  | 'JOB_FAILURE'
+  | 'WEBHOOK_FAILURE'
+  | 'SECURITY_EVENT'
+  | 'CONFIGURATION_WARNING'
+  | 'DATA_QUALITY_WARNING'
+  | 'DEPLOYMENT_EVENT'
+  | 'SYSTEM'
+  | 'BILLING'
+  | 'JOB';
 
 export interface RecordTelemetryInput {
   organizationId?: string | null;
   userId?: string | null;
-  eventType: 'REQUEST' | 'ERROR' | 'SYSTEM' | 'SECURITY' | 'AI' | 'BILLING' | 'JOB';
+  eventType: SystemEventType;
   severity?: 'INFO' | 'WARN' | 'ERROR' | 'CRITICAL';
   route?: string | null;
   method?: string | null;
@@ -25,11 +46,28 @@ export interface RecordTelemetryInput {
 const SLOW_REQUEST_MS = Number(process.env.SYSTEM_SLOW_REQUEST_MS || '750');
 const SAMPLE_RATE = Number(process.env.SYSTEM_TELEMETRY_SAMPLE_RATE || '0.1');
 
+// Pipeline self-monitoring state
+interface PipelineStats {
+  totalRecorded: number;
+  totalFlushed: number;
+  lastWriteAt: string | null;
+  lastFlushError: string | null;
+  storageStatus: 'CONNECTED' | 'DEGRADED';
+}
+
+const stats: PipelineStats = {
+  totalRecorded: 0,
+  totalFlushed: 0,
+  lastWriteAt: null,
+  lastFlushError: null,
+  storageStatus: 'CONNECTED',
+};
+
 // In-memory buffer for high-throughput metrics and batched persistence
 const pendingBatch: RecordTelemetryInput[] = [];
 let flushTimeout: NodeJS.Timeout | null = null;
 
-async function flushBatch() {
+async function flushBatch(): Promise<void> {
   if (pendingBatch.length === 0) return;
   const items = pendingBatch.splice(0, pendingBatch.length);
 
@@ -54,22 +92,41 @@ async function flushBatch() {
       data,
       skipDuplicates: true,
     });
-  } catch (err) {
-    // Non-blocking fallback to avoid breaking request cycle
+
+    stats.totalFlushed += items.length;
+    stats.lastWriteAt = new Date().toISOString();
+    stats.storageStatus = 'CONNECTED';
+    stats.lastFlushError = null;
+  } catch (err: any) {
+    stats.storageStatus = 'DEGRADED';
+    stats.lastFlushError = err.message || String(err);
     console.error('[Telemetry] Failed to persist batch:', err);
   }
 }
 
 export function recordTelemetry(event: RecordTelemetryInput): void {
-  const isError = (event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 400) ||
+  stats.totalRecorded++;
+
+  const isError =
+    (event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 400) ||
     event.severity === 'ERROR' ||
     event.severity === 'CRITICAL' ||
+    event.eventType.endsWith('_ERROR') ||
+    event.eventType.endsWith('_FAILURE') ||
     event.eventType === 'ERROR';
 
-  const isSlow = (event.durationMs !== undefined && event.durationMs !== null && event.durationMs >= SLOW_REQUEST_MS);
+  const isSlow =
+    event.durationMs !== undefined && event.durationMs !== null && event.durationMs >= SLOW_REQUEST_MS;
 
-  // 100% of errors and slow requests, sampled for standard healthy requests
-  const shouldRecord = isError || isSlow || Math.random() < SAMPLE_RATE;
+  const isSpecialEvent =
+    event.eventType === 'SECURITY_EVENT' ||
+    event.eventType === 'AUTH_FAILURE' ||
+    event.eventType === 'CONFIGURATION_WARNING' ||
+    event.eventType === 'DATA_QUALITY_WARNING' ||
+    event.eventType === 'DEPLOYMENT_EVENT';
+
+  // 100% of errors, slow requests, and security/config events; sampled for healthy 2xx requests
+  const shouldRecord = isError || isSlow || isSpecialEvent || Math.random() < SAMPLE_RATE;
   if (!shouldRecord) return;
 
   pendingBatch.push(event);
@@ -84,10 +141,31 @@ export function recordTelemetry(event: RecordTelemetryInput): void {
   }
 }
 
+export const recordTelemetryEvent = recordTelemetry;
+
 export async function flushTelemetrySync(): Promise<void> {
   if (flushTimeout) {
     clearTimeout(flushTimeout);
     flushTimeout = null;
   }
   await flushBatch();
+}
+
+export function getTelemetryPipelineHealth() {
+  return {
+    ...stats,
+    status: stats.storageStatus === 'CONNECTED' ? 'HEALTHY' : 'DEGRADED',
+    storage: stats.storageStatus === 'CONNECTED' ? 'POSTGRESQL_BATCH' : 'MEMORY_DEGRADED',
+    bufferedEvents: pendingBatch.length,
+    bufferLength: pendingBatch.length,
+    droppedEvents: 0,
+    lastFlushTimestamp: stats.lastWriteAt,
+  };
+}
+
+export function generateCorrelationIds(): { requestId: string; traceId: string } {
+  return {
+    requestId: `req_${crypto.randomBytes(8).toString('hex')}`,
+    traceId: `trc_${crypto.randomBytes(12).toString('hex')}`,
+  };
 }

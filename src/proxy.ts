@@ -58,12 +58,7 @@ export async function proxy(request: NextRequest) {
         hasSessionCookie = true;
       }
     } catch {
-      // In development/test mode only: accept opaque hex tokens if present
-      if (process.env.NODE_ENV !== 'production' && sessionCookie.length === 64) {
-        hasSessionCookie = true;
-      } else {
-        hasSessionCookie = false;
-      }
+      hasSessionCookie = false;
     }
   }
 
@@ -91,3 +86,5 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
+
+export const middleware = proxy;
