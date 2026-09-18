@@ -30,10 +30,11 @@ const testSuites = [
   'tests/verify_phase43.ts',
   'tests/verify_phase44.ts',
   'tests/verify_phase46.ts',
+  'tests/verify_phase47.ts',
 ];
 
 console.log('==========================================================================');
-console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 46)`);
+console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 47)`);
 console.log('==========================================================================\n');
 
 let allPassed = true;

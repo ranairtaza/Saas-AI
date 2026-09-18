@@ -85,6 +85,7 @@ model Organization {
   actionPlans                  ExecutiveActionPlan[]
   executiveOutcomeAttributions ExecutiveOutcomeAttribution[]
   businessInsights             BusinessInsight[]
+  systemTelemetryEvents        SystemTelemetryEvent[]
 }
 
 model Lead {
@@ -1052,4 +1053,31 @@ model ExecutiveOutcomeAttribution {
 
   @@index([organizationId, attributionStatus])
   @@index([outcomeId])
+}
+
+// --- PHASE 47 SYSTEM OBSERVABILITY TELEMETRY ---
+
+model SystemTelemetryEvent {
+  id             String        @id @default(uuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  eventType      String        // REQUEST | ERROR | SYSTEM | SECURITY | AI | BILLING | JOB
+  severity       String        @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  route          String?
+  method         String?
+  statusCode     Int?
+  durationMs     Float?
+  requestId      String?
+  traceId        String?
+  service        String        @default("api")
+  message        String?
+  metadata       String?       // JSON string sanitized
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([statusCode, createdAt])
+  @@index([route, createdAt])
+  @@index([severity, createdAt])
+  @@index([eventType, createdAt])
 }

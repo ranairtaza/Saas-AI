@@ -4,8 +4,20 @@ import type { NextRequest } from 'next/server';
 // Add paths that require authentication here
 const protectedPaths = [
   '/dashboard',
+  '/executive',
+  '/discover',
+  '/billing',
   '/settings',
-  '/api/leads', 
+  '/system',
+  '/api/executive',
+  '/api/ai',
+  '/api/billing',
+  '/api/system',
+  '/api/leads',
+  '/api/insights',
+  '/api/integrations',
+  '/api/settings',
+  '/api/internal',
 ];
 
 // Add paths that should not be accessible if already authenticated
@@ -24,7 +36,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Broad edge protection: Check for the presence of the session cookie.
+  // Broad edge protection: Check for the presence and validity of the session cookie.
   const sessionCookie = request.cookies.get('session')?.value;
   let hasSessionCookie = false;
   
@@ -45,15 +57,16 @@ export async function proxy(request: NextRequest) {
         await jwtVerify(sessionCookie, secret);
         hasSessionCookie = true;
       }
-    } catch (e) {
-      // Fallback for existing opaque session tokens (64-char hex strings)
-      if (sessionCookie.length === 64) {
+    } catch {
+      // In development/test mode only: accept opaque hex tokens if present
+      if (process.env.NODE_ENV !== 'production' && sessionCookie.length === 64) {
         hasSessionCookie = true;
       } else {
         hasSessionCookie = false;
       }
     }
   }
+
 
   // Handle protected paths: Redirect to login if no valid cookie is present
   if (isProtectedPath && !hasSessionCookie) {

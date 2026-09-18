@@ -22,7 +22,8 @@ export class ExecutiveEventRules {
     if (count === null || count === undefined || count <= 0) return null;
 
     const severity = count >= 3 ? 'CRITICAL' : 'HIGH';
-    const estimatedExposure = count * 8000;
+    const avgDeal = (context.businessContext.telemetry.metrics as any).averageDealSize?.value;
+    const estimatedExposure = avgDeal ? count * avgDeal : null;
 
     return EventNormalizer.normalizeEvent({
       organizationId: context.businessContext.organizationId,
@@ -30,15 +31,19 @@ export class ExecutiveEventRules {
       domain: 'REVENUE',
       severity,
       title: `${count} High-Value Lead${count > 1 ? 's' : ''} Require Immediate Territory Assignment`,
-      summary: `${count} qualified lead${count > 1 ? 's' : ''} (score >= 75) remain unassigned, exposing approximately $${estimatedExposure.toLocaleString()} in potential pipeline value to velocity decay.`,
+      summary: estimatedExposure
+        ? `${count} qualified lead${count > 1 ? 's' : ''} (score >= 75) remain unassigned, exposing approximately $${estimatedExposure.toLocaleString()} in potential pipeline value to velocity decay.`
+        : `${count} qualified lead${count > 1 ? 's' : ''} (score >= 75) remain unassigned, risking pipeline velocity decay without an assigned account executive.`,
       sourceTable: 'leads',
       sourceRecordId: 'backlog',
       facts: [
         `Unassigned high-priority leads in queue: ${count}`,
-        `Total qualified leads: ${context.businessContext.telemetry.metrics.qualifiedLeads?.value}`,
-        `Estimated pipeline exposure: $${estimatedExposure.toLocaleString()}`,
+        `Total qualified leads: ${context.businessContext.telemetry.metrics.qualifiedLeads?.value ?? 0}`,
+        estimatedExposure
+          ? `Estimated pipeline exposure: $${estimatedExposure.toLocaleString()}`
+          : `Pipeline exposure: Uncalculated (requires configured deal size)`,
       ],
-      metadata: { unassignedCount: count, estimatedExposure },
+      metadata: { unassignedCount: count, estimatedExposure: estimatedExposure ?? undefined },
       dedupKey: `count_${count}`,
     });
   }

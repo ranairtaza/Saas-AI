@@ -205,6 +205,7 @@ export const OutcomeEvaluationSchema = z.object({
   hypothesisStatus: HypothesisValidationStatusSchema,
   falsified: z.boolean(),
   effectivenessScore: z.number().min(0).max(100),
+  inconclusiveReason: z.string().nullable().optional(),
   evaluatedAt: z.date().or(z.string()),
   evaluationMode: z.enum(['SCHEDULED', 'EARLY_MANUAL']).default('SCHEDULED'),
 });

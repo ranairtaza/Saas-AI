@@ -314,14 +314,17 @@ export class OutcomeEvaluator {
     const healthScoreDelta =
       input.afterSnapshot.businessHealthScore - input.beforeSnapshot.businessHealthScore;
 
-    const resultStatus = this.classifyResult({
-      kpiKey: input.targetKpiKey,
-      baselineValue,
-      finalValue,
-      deltaValue,
-      deltaPercentage,
-      healthScoreDelta,
-    });
+    const isUnknownKpi = Boolean(input.targetKpiKey && baselineValue === null && finalValue === null);
+    const resultStatus = isUnknownKpi
+      ? 'INCONCLUSIVE'
+      : this.classifyResult({
+          kpiKey: input.targetKpiKey,
+          baselineValue,
+          finalValue,
+          deltaValue,
+          deltaPercentage,
+          healthScoreDelta,
+        });
 
     const hypothesis = this.evaluateHypothesis({
       resultStatus,
@@ -347,24 +350,26 @@ export class OutcomeEvaluator {
     });
 
     const effectivenessStatus = this.classifyEffectiveness({
-      varianceStatus,
+      varianceStatus: isUnknownKpi ? 'INCONCLUSIVE' : varianceStatus,
       variancePercentage,
       resultStatus,
       attributionLevel: input.attributionLevel,
-      hasSufficientEvidence: confidence !== 'INSUFFICIENT',
+      hasSufficientEvidence: !isUnknownKpi && confidence !== 'INSUFFICIENT',
     });
 
     // Compute single-outcome effectiveness score
-    const effectivenessScore = this.calculateEffectivenessScore({
-      totalRecommendations: 1,
-      totalExecuted: 1,
-      successCount: resultStatus === 'SUCCESS' ? 1 : 0,
-      partialCount: resultStatus === 'PARTIAL' ? 1 : 0,
-      totalMeasured: 1,
-      avgHealthScoreDelta: healthScoreDelta,
-      supportedCount: hypothesis.status === 'SUPPORTED' ? 1 : 0,
-      refutedCount: hypothesis.status === 'REFUTED' ? 1 : 0,
-    });
+    const effectivenessScore = isUnknownKpi
+      ? 0
+      : this.calculateEffectivenessScore({
+          totalRecommendations: 1,
+          totalExecuted: 1,
+          successCount: resultStatus === 'SUCCESS' ? 1 : 0,
+          partialCount: resultStatus === 'PARTIAL' ? 1 : 0,
+          totalMeasured: 1,
+          avgHealthScoreDelta: healthScoreDelta,
+          supportedCount: hypothesis.status === 'SUPPORTED' ? 1 : 0,
+          refutedCount: hypothesis.status === 'REFUTED' ? 1 : 0,
+        });
 
     return {
       finalValue,
@@ -375,15 +380,16 @@ export class OutcomeEvaluator {
       actualValue: finalValue ?? undefined,
       variance,
       variancePercentage,
-      varianceStatus,
-      confidence,
+      varianceStatus: isUnknownKpi ? 'INCONCLUSIVE' : varianceStatus,
+      confidence: isUnknownKpi ? 'INSUFFICIENT' : confidence,
       effectivenessStatus,
       resultStatus,
       attributionLevel: input.attributionLevel,
-      attributionRationale: input.attributionRationale,
+      attributionRationale: isUnknownKpi ? 'Target KPI key cannot be resolved in telemetry or goal registry.' : input.attributionRationale,
       hypothesisStatus: hypothesis.status,
       falsified: hypothesis.falsified,
       effectivenessScore,
+      inconclusiveReason: isUnknownKpi ? 'UNKNOWN_KPI' : undefined,
       evaluatedAt: new Date(),
       evaluationMode: input.isEarlyEvaluation ? 'EARLY_MANUAL' : 'SCHEDULED',
     };

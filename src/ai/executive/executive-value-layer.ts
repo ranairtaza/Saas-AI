@@ -172,14 +172,17 @@ export class ExecutiveValueLayer {
       const ctx = state.businessContext as any;
       const unassigned = ctx.telemetry?.unassignedHighPriorityLeads || 0;
       if (unassigned > 0) {
-        const estimatedValue = unassigned * 8000;
+        const avgDeal = ctx.profile?.averageDealSize || ctx.telemetry?.metrics?.averageDealSize?.value;
+        const estimatedValue = avgDeal ? unassigned * avgDeal : undefined;
         opportunities.push({
           id: `opp-${++opIdx}`,
           title: `${unassigned} high-priority leads available for assignment`,
           domain: 'PIPELINE',
           category: 'LEAD_FOLLOW_UP',
-          businessImpact: `Assigning ${unassigned} qualified leads could unlock an estimated $${estimatedValue.toLocaleString()} in pipeline value.`,
-          impactValueCategory: 'ESTIMATED',
+          businessImpact: avgDeal
+            ? `Assigning ${unassigned} qualified leads could unlock an estimated $${estimatedValue?.toLocaleString()} in pipeline value (based on average deal size).`
+            : `Assigning ${unassigned} qualified leads unblocks pipeline velocity. Deal values require configured average deal size.`,
+          impactValueCategory: avgDeal ? 'ESTIMATED' : 'INSUFFICIENT_EVIDENCE',
           estimatedImpactValue: estimatedValue,
           confidence: 'HIGH',
           evidenceSufficiency: 'SUFFICIENT',
@@ -187,7 +190,9 @@ export class ExecutiveValueLayer {
           explanation: this.buildExplanation({
             what: `${unassigned} qualified leads (score >= 75) are currently unassigned.`,
             why: 'Lead scoring has identified enterprise-quality prospects that have not been routed to account executives.',
-            soWhat: `Unassigned leads represent approximately $${estimatedValue.toLocaleString()} in estimated pipeline value that is not being actively pursued.`,
+            soWhat: avgDeal
+              ? `Unassigned leads represent approximately $${estimatedValue?.toLocaleString()} in estimated pipeline value that is not being actively pursued.`
+              : `Unassigned leads delay speed-to-lead and pipeline velocity across ${unassigned} high-priority prospects.`,
             nowWhat: 'Assign leads to available account executives within the 24-hour SLA window.',
             confidence: 'HIGH',
             evidenceSufficiency: 'SUFFICIENT',

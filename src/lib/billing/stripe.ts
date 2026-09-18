@@ -7,16 +7,6 @@ export function getStripe(): Stripe {
   if (!stripeInstance) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
-      if (process.env.NEXT_PHASE === 'phase-production-build') {
-        // Build-time static analysis placeholder only
-        return new Stripe('sk_test_placeholder_for_build', {
-          apiVersion: '2026-08-26.dahlia' as any,
-          appInfo: {
-            name: 'LeadMachine',
-            version: '1.0.0',
-          },
-        });
-      }
       throw new Error(
         '[Stripe Configuration Error] STRIPE_SECRET_KEY is not configured. Billing operations are strictly fail-closed.'
       );

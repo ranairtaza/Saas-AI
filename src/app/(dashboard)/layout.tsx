@@ -21,7 +21,8 @@ import {
   BarChart,
   Briefcase,
   FileText,
-  Bot
+  Bot,
+  Activity
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CreditsWidget } from "@/components/credits-widget";
@@ -35,7 +36,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string | null; email: string; onboarded: boolean; organization?: { name: string } } | null>(null);
+  const [user, setUser] = useState<{ name: string | null; email: string; role?: string; onboarded: boolean; organization?: { name: string } } | null>(null);
 
   useEffect(() => {
     // Fetch user on mount
@@ -157,6 +158,11 @@ export default function DashboardLayout({
               </div>
               <NavItem href="/billing" icon={<CreditCard size={18} />} active={pathname === "/billing"}>Billing</NavItem>
               <NavItem href="/settings" icon={<Settings size={18} />} active={pathname.startsWith("/settings")}>Settings</NavItem>
+              {(user.role === "OWNER" || user.role === "ADMIN") && (
+                <NavItem href="/system" icon={<Activity size={18} />} active={pathname === "/system"}>
+                  System Command Center
+                </NavItem>
+              )}
             </div>
             
           </nav>

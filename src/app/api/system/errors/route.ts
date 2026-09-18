@@ -1,0 +1,65 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentUser } from '@/lib/session';
+import prisma from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Forbidden: Owner or Admin role required' },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const limit = Math.min(Number(searchParams.get('limit') || '50'), 100);
+    const severity = searchParams.get('severity');
+
+    const where: any = {
+      OR: [
+        { statusCode: { gte: 400 } },
+        { severity: { in: ['WARN', 'ERROR', 'CRITICAL'] } },
+        { eventType: 'ERROR' },
+      ],
+    };
+
+    if (severity) {
+      where.severity = severity;
+    }
+
+    const events = await prisma.systemTelemetryEvent.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        organizationId: true,
+        userId: true,
+        eventType: true,
+        severity: true,
+        route: true,
+        method: true,
+        statusCode: true,
+        durationMs: true,
+        requestId: true,
+        traceId: true,
+        service: true,
+        message: true,
+        metadata: true,
+        createdAt: true,
+      },
+    });
+
+    return NextResponse.json({ events });
+  } catch (error: any) {
+    console.error('[SystemErrors] Failed to fetch system errors:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}

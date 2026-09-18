@@ -360,16 +360,23 @@ CRITICAL INSTRUCTIONS:
 
     // Top Priorities & Recommended Actions (existing logic preserved)
     if (unassigned !== null && unassigned > 0) {
-      const exposure = unassigned * 8000;
+      const avgDeal = (params.context.telemetry.metrics as any).averageDealSize?.value;
+      const exposure = avgDeal ? unassigned * avgDeal : null;
       topPriorities.push({
         priorityLevel: unassigned >= 3 ? 'CRITICAL' : 'HIGH',
         title: `${unassigned} High-Value Lead${unassigned > 1 ? 's' : ''} Remain Unassigned`,
         summary: `Qualified enterprise accounts (score >= 75) are unallocated, creating potential velocity loss.`,
-        impact: `$${exposure.toLocaleString()} estimated pipeline exposure`,
+        impact: exposure
+          ? `$${exposure.toLocaleString()} estimated pipeline exposure (assumed avg deal $${avgDeal?.toLocaleString()})`
+          : `${unassigned} high-priority leads exposed to velocity decay`,
         actionAvailable: true,
       });
 
-      risks.push(`Unassigned lead conversion degradation risk on $${exposure.toLocaleString()} pipeline.`);
+      risks.push(
+        exposure
+          ? `Unassigned lead conversion degradation risk on $${exposure.toLocaleString()} pipeline.`
+          : `Unassigned lead conversion degradation risk across ${unassigned} qualified leads.`
+      );
       recommendedActions.push({
         actionName: 'assign_lead',
         description: `Assign ${unassigned} unassigned high-priority lead${unassigned > 1 ? 's' : ''} to account executives.`,

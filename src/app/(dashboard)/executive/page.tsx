@@ -66,8 +66,8 @@ export default function ExecutivePage() {
     setLoading(true);
     setError(null);
 
-    // 1. Primary Fast Snapshot: Single aggregated call containing full command loop state
-    const url = forceRefresh ? "/api/executive/operating-state?refresh=true" : "/api/executive/operating-state";
+    // 1. Primary Unified Aggregate: Single aggregated call containing complete executive read model
+    const url = forceRefresh ? "/api/executive/dashboard?refresh=true" : "/api/executive/dashboard";
 
     fetch(url)
       .then(async (res) => {
@@ -81,6 +81,11 @@ export default function ExecutivePage() {
         const state = data.operatingState ?? null;
         setOperatingState(state);
         setValueSynthesis(data.valueSynthesis ?? null);
+
+        if (data.briefing) setBriefing(data.briefing);
+        if (data.outcomes) setOutcomes(data.outcomes);
+        if (data.recommendations) setRecommendations(data.recommendations);
+        if (data.events) setEvents(data.events);
 
         if (state) {
           // Hydrate core panels directly from primary operating state
@@ -114,33 +119,12 @@ export default function ExecutivePage() {
           }
         }
 
-        // Drop global skeleton immediately
+        // Drop global skeleton immediately with all data loaded
         setLoading(false);
-
-        // 2. Deferred Async Pass: Fetch remaining deep intelligence asynchronously
-        fetch("/api/executive/briefing")
-          .then((res) => res.ok ? res.json() : null)
-          .then((d) => { if (d?.briefing) setBriefing(d.briefing); })
-          .catch(() => {});
-
-        fetch("/api/executive/outcomes")
-          .then((res) => res.ok ? res.json() : null)
-          .then((d) => { if (d?.outcomes) setOutcomes(d.outcomes); })
-          .catch(() => {});
-
-        fetch("/api/executive/recommendations?limit=5")
-          .then((res) => res.ok ? res.json() : null)
-          .then((d) => { if (d?.recommendations) setRecommendations(d.recommendations); })
-          .catch(() => {});
-
-        fetch("/api/executive/events")
-          .then((res) => res.ok ? res.json() : null)
-          .then((d) => { if (d?.events) setEvents(d.events); })
-          .catch(() => {});
       })
       .catch((e: any) => {
         console.error("[Dashboard] Primary load failed:", e);
-        setError(e.message || "Failed to load executive operating state");
+        setError(e.message || "Failed to load executive dashboard data");
         setLoading(false);
       });
   }, []);
