@@ -156,7 +156,7 @@ export default function DashboardLayout({
                 Administration
               </div>
               <NavItem href="/billing" icon={<CreditCard size={18} />} active={pathname === "/billing"}>Billing</NavItem>
-              <NavItem href="/settings" icon={<Settings size={18} />} active={pathname === "/settings"}>Settings</NavItem>
+              <NavItem href="/settings" icon={<Settings size={18} />} active={pathname.startsWith("/settings")}>Settings</NavItem>
             </div>
             
           </nav>
