@@ -7,9 +7,8 @@ export function getStripe(): Stripe {
   if (!stripeInstance) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) {
-      if (process.env.NODE_ENV === 'production' && typeof window === 'undefined') {
-        // Warning: key not set; instantiate mock key to allow static route analysis
-        // Real API invocations will require the key
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        // Build-time static analysis placeholder only
         return new Stripe('sk_test_placeholder_for_build', {
           apiVersion: '2026-08-26.dahlia' as any,
           appInfo: {
@@ -18,13 +17,9 @@ export function getStripe(): Stripe {
           },
         });
       }
-      return new Stripe('sk_test_mock', {
-        apiVersion: '2026-08-26.dahlia' as any,
-        appInfo: {
-          name: 'LeadMachine',
-          version: '1.0.0',
-        },
-      });
+      throw new Error(
+        '[Stripe Configuration Error] STRIPE_SECRET_KEY is not configured. Billing operations are strictly fail-closed.'
+      );
     }
 
     stripeInstance = new Stripe(key, {

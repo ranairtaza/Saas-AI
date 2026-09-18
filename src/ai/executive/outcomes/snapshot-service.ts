@@ -98,7 +98,7 @@ export class TelemetrySnapshotService {
       return goalMatch.currentValue;
     }
 
-    // Fallback to health score
-    return snapshot.businessHealthScore;
+    // No matching metric found in snapshot — return null (zero fabrication)
+    return null;
   }
 }

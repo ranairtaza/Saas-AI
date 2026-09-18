@@ -165,12 +165,12 @@ async function main() {
       recentLearningSignals: [],
       metricsSummary: [],
       recentOutcomeAttributions: [
-        { attributionStatus: 'CORRELATED', actualDeltaValue: 10 } as any,
-        { attributionStatus: 'DIRECT_CAUSAL', actualDeltaValue: 5 } as any,
+        { attributionStatus: 'CORRELATED', targetMetric: 'REVENUE', actualDeltaValue: 10 } as any,
+        { attributionStatus: 'DIRECT_CAUSAL', targetMetric: 'REVENUE', actualDeltaValue: 5 } as any,
       ]
     } as any;
     const synthesis = ExecutiveValueLayer.synthesize(mockState);
-    if (!synthesis.commercialValueSignals.estimatedValueCreated?.includes('500.00')) {
+    if (!synthesis.commercialValueSignals.estimatedValueCreated?.includes('5.00')) {
       throw new Error(`Scenario J Failed: Expected ROI to only count DIRECT_CAUSAL (5), got ${synthesis.commercialValueSignals.estimatedValueCreated}`);
     }
 

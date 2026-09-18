@@ -62,116 +62,87 @@ export default function ExecutivePage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   // ── Data fetching ───────────────────────────────────────────────────────
-  const fetchDashboardData = useCallback(() => {
+  const fetchDashboardData = useCallback((forceRefresh = false) => {
     setLoading(true);
     setError(null);
 
-    // Track when all critical fetches are done to disable the global loading skeleton
-    let pending = 13;
-    const checkDone = () => {
-      pending--;
-      if (pending === 0) setLoading(false);
-    };
+    // 1. Primary Fast Snapshot: Single aggregated call containing full command loop state
+    const url = forceRefresh ? "/api/executive/operating-state?refresh=true" : "/api/executive/operating-state";
 
-    // 1. Operating state (Primary)
-    fetch("/api/executive/operating-state")
-      .then((res) => res.json())
-      .then((data) => {
-        setOperatingState(data.operatingState ?? null);
-        setValueSynthesis(data.valueSynthesis ?? null);
+    fetch(url)
+      .then(async (res) => {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+        return res.json();
       })
-      .catch((e) => console.error(e))
-      .finally(() => {
-        // We consider the primary load "done" when the main state resolves,
-        // so we can drop the global skeleton early and let the rest pop in.
+      .then((data) => {
+        const state = data.operatingState ?? null;
+        setOperatingState(state);
+        setValueSynthesis(data.valueSynthesis ?? null);
+
+        if (state) {
+          // Hydrate core panels directly from primary operating state
+          if (state.businessContext) {
+            setContext(state.businessContext);
+            setGoals(state.businessContext.goals ?? []);
+            if (state.businessContext.historicalPerformance) {
+              setPerformance(state.businessContext.historicalPerformance);
+            }
+          }
+          if (state.activeDecisions) {
+            setDecisions(state.activeDecisions);
+          }
+          if (state.actionPlans) {
+            setActionPlans(state.actionPlans);
+            setActionSummary({
+              total: state.actionPlans.length,
+              proposed: state.actionPlans.filter((a: any) => a.status === "PROPOSED").length,
+              approved: state.actionPlans.filter((a: any) => a.status === "APPROVED").length,
+              executing: state.actionPlans.filter((a: any) => a.status === "EXECUTING").length,
+            });
+          }
+          if (state.pendingActions) {
+            setPendingActions(state.pendingActions);
+          }
+          if (state.activeForecasts) {
+            setForecastSummary({
+              total: state.activeForecasts.length,
+              forecasts: state.activeForecasts,
+            });
+          }
+        }
+
+        // Drop global skeleton immediately
         setLoading(false);
-        checkDone();
+
+        // 2. Deferred Async Pass: Fetch remaining deep intelligence asynchronously
+        fetch("/api/executive/briefing")
+          .then((res) => res.ok ? res.json() : null)
+          .then((d) => { if (d?.briefing) setBriefing(d.briefing); })
+          .catch(() => {});
+
+        fetch("/api/executive/outcomes")
+          .then((res) => res.ok ? res.json() : null)
+          .then((d) => { if (d?.outcomes) setOutcomes(d.outcomes); })
+          .catch(() => {});
+
+        fetch("/api/executive/recommendations?limit=5")
+          .then((res) => res.ok ? res.json() : null)
+          .then((d) => { if (d?.recommendations) setRecommendations(d.recommendations); })
+          .catch(() => {});
+
+        fetch("/api/executive/events")
+          .then((res) => res.ok ? res.json() : null)
+          .then((d) => { if (d?.events) setEvents(d.events); })
+          .catch(() => {});
+      })
+      .catch((e: any) => {
+        console.error("[Dashboard] Primary load failed:", e);
+        setError(e.message || "Failed to load executive operating state");
+        setLoading(false);
       });
-
-    // 2. Briefing
-    fetch("/api/executive/briefing")
-      .then((res) => res.json())
-      .then((data) => setBriefing(data.briefing ?? null))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 3. Context
-    fetch("/api/executive/context")
-      .then((res) => res.json())
-      .then((data) => setContext(data.context ?? null))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 4. Decisions
-    fetch("/api/executive/decisions")
-      .then((res) => res.json())
-      .then((data) => setDecisions(data.decisions ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 5. Actions
-    fetch("/api/executive/actions")
-      .then((res) => res.json())
-      .then((data) => setActionPlans(data.actions ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 6. Action Summary
-    fetch("/api/executive/actions/summary")
-      .then((res) => res.json())
-      .then((data) => setActionSummary(data.summary ?? null))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 7. Pending Actions
-    fetch("/api/ai/actions?status=WAITING")
-      .then((res) => res.json())
-      .then((data) => setPendingActions(data.data ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 8. Forecasts
-    fetch("/api/executive/forecasts/summary")
-      .then((res) => res.json())
-      .then((data) => setForecastSummary(data.summary ?? null))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 9. Outcomes
-    fetch("/api/executive/outcomes")
-      .then((res) => res.json())
-      .then((data) => setOutcomes(data.outcomes ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 10. Performance
-    fetch("/api/executive/performance")
-      .then((res) => res.json())
-      .then((data) => setPerformance(data.performance ?? null))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 11. Goals
-    fetch("/api/executive/goals")
-      .then((res) => res.json())
-      .then((data) => setGoals(data.goals ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 12. Recommendations
-    fetch("/api/executive/recommendations?limit=5")
-      .then((res) => res.json())
-      .then((data) => setRecommendations(data.recommendations ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
-    // 13. Events
-    fetch("/api/executive/events")
-      .then((res) => res.json())
-      .then((data) => setEvents(data.events ?? []))
-      .catch((e) => console.error(e))
-      .finally(checkDone);
-
   }, []);
 
   // Selective refresh: pending actions only (for the human gate queue)

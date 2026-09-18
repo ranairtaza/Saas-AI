@@ -93,6 +93,7 @@ export const DomainHealthSchema = z.object({
   weight: z.number().min(0).max(1),
   rationale: z.string(),
   factors: z.array(z.string()),
+  evidenceSufficiency: z.enum(['NO_DATA', 'INSUFFICIENT_DATA', 'PARTIAL_DATA', 'SUFFICIENT_DATA']).default('SUFFICIENT_DATA'),
 });
 
 export type DomainHealth = z.infer<typeof DomainHealthSchema>;
@@ -101,6 +102,7 @@ export const BusinessHealthSchema = z.object({
   overallScore: z.number().min(0).max(100),
   status: z.enum(['HEALTHY', 'STABLE', 'ATTENTION_NEEDED', 'CRITICAL_RISK']),
   evaluatedAt: z.date().or(z.string()),
+  evidenceSufficiency: z.enum(['NO_DATA', 'INSUFFICIENT_DATA', 'PARTIAL_DATA', 'SUFFICIENT_DATA']).default('SUFFICIENT_DATA'),
   domains: z.object({
     revenue: DomainHealthSchema,
     pipeline: DomainHealthSchema,

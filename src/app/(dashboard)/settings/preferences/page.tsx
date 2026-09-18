@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Bell, Moon, Mail } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useToast } from "@/components/ui/Toast";
 
 export default function PreferencesSettingsPage() {
+  const { addToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   
@@ -12,13 +14,35 @@ export default function PreferencesSettingsPage() {
   const [dailyDigest, setDailyDigest] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch("/api/settings/preferences")
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.preferences) {
+          setEmailAlerts(data.preferences.emailAlerts ?? true);
+          setDailyDigest(data.preferences.dailyDigest ?? true);
+          setPushNotifications(data.preferences.pushNotifications ?? false);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Mock save delay
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/settings/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailAlerts, dailyDigest, pushNotifications }),
+      });
+      if (!res.ok) throw new Error("Failed to save preferences");
+      addToast("Preferences saved successfully", "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to save preferences", "error");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

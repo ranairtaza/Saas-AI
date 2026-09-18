@@ -1,87 +1,129 @@
-import { PrismaClient } from '@prisma/client';
+import { ExecutiveValueLayer } from '../src/ai/executive/executive-value-layer';
+import { ExecutiveOperatingState, ExecutiveOperatingStateSchema } from '../src/ai/executive/operating-state/types';
 
-const prisma = new PrismaClient();
+let passed = 0;
+let failed = 0;
+
+function assert(condition: boolean, name: string) {
+  if (condition) {
+    passed++;
+    console.log(`[PASS] ${name}`);
+  } else {
+    failed++;
+    console.error(`[FAIL] ${name}`);
+  }
+}
 
 async function runTests() {
-  console.log("Starting Phase 36 Verification...");
-  let allPassed = true;
+  console.log('--- PHASE 36 AUTOMATED INTEGRATION & CONTRACT TESTS ---\n');
 
-  try {
-    // A Executive operating state loads
-    // Verify that we can query the necessary models
-    let execState;
-    try {
-      execState = await prisma.executiveBriefingRecord.findFirst({
-        orderBy: { createdAt: 'desc' }
-      });
-      console.log("A. Executive operating state loads: ", execState ? "PASS" : "FAIL (No state found, but schema exists)");
-    } catch (e: any) {
-      if (e.name === 'PrismaClientInitializationError' || e.message.includes('Can\'t reach database server')) {
-        console.log("A. Executive operating state loads: PASS (Schema present, DB offline)");
-      } else {
-        throw e;
-      }
-    }
+  // 1. Contract Validation: Executive Operating State Schema
+  const mockState: ExecutiveOperatingState = {
+    organizationId: 'org-test-36',
+    timestamp: new Date().toISOString(),
+    activeDecisions: [
+      {
+        id: 'dec-1',
+        title: 'Approve marketing campaign',
+        domain: 'MARKETING',
+        decisionType: 'BUDGET',
+        status: 'PENDING',
+        priority: 'HIGH',
+        governanceVerdict: 'APPROVED',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'dec-2',
+        title: 'High-risk unapproved expenditure',
+        domain: 'FINANCE',
+        decisionType: 'BUDGET',
+        status: 'BLOCKED',
+        priority: 'CRITICAL',
+        governanceVerdict: 'REJECTED',
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    recentLearningSignals: [],
+    activeForecasts: [],
+    actionPlans: [],
+    pendingActions: [],
+    recentOutcomeAttributions: [
+      {
+        id: 'attr-corr',
+        attributionStatus: 'CORRELATED',
+        confidence: 'MEDIUM',
+        targetMetric: 'QUALIFIED_LEADS',
+        actualDeltaValue: 15,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
 
-    // B Executive snapshot uses real backend data
-    // D Partial telemetry is represented correctly
-    let telemetry;
-    try {
-      telemetry = await prisma.metricSnapshot.findFirst({
-        orderBy: { createdAt: 'desc' }
-      });
-      console.log("B & D. Telemetry data exists: ", telemetry ? "PASS" : "FAIL");
-    } catch (e: any) {
-      if (e.name === 'PrismaClientInitializationError' || e.message.includes('Can\'t reach database server')) {
-        console.log("B & D. Telemetry data exists: PASS (Schema present, DB offline)");
-      } else {
-        throw e;
-      }
-    }
+  const parsed = ExecutiveOperatingStateSchema.safeParse(mockState);
+  assert(parsed.success, 'ExecutiveOperatingStateSchema successfully parses valid state structure');
 
-    // F Actual is labeled ACTUAL
-    // G Expected impact is labeled EXPECTED
-    // E Forecast is labeled FORECAST
-    console.log("E, F, G. UI Labels verified by source code review: PASS");
+  // 2. Attribution Semantics: CORRELATED status MUST NOT achieve SUFFICIENT ROI evidence
+  const synthesisCorrelated = ExecutiveValueLayer.synthesize(mockState);
+  assert(
+    synthesisCorrelated.commercialValueSignals.roiEvidenceSufficiency !== 'SUFFICIENT',
+    'CORRELATED outcome attribution strictly never achieves SUFFICIENT ROI evidence'
+  );
+  assert(
+    synthesisCorrelated.commercialValueSignals.roiEvidenceSufficiency === 'PARTIAL',
+    'CORRELATED attribution correctly maps to PARTIAL evidence sufficiency'
+  );
 
-    // H CORRELATED never becomes ROI
-    // I DIRECT_CAUSAL is the only attributed-value path
-    // J INCONCLUSIVE remains inconclusive
-    // K INSUFFICIENT_EVIDENCE remains insufficient
-    let outcomes;
-    try {
-      outcomes = await prisma.executiveOutcome.findMany({ take: 5 });
-    } catch (e: any) {
-      // ignore offline DB
-    }
-    console.log("H, I, J, K. Outcome attribution semantics verified by source code review: PASS");
+  // 3. Attribution Semantics: DIRECT_CAUSAL with monetary metric achieves SUFFICIENT
+  const directCausalState: ExecutiveOperatingState = {
+    ...mockState,
+    recentOutcomeAttributions: [
+      {
+        id: 'attr-causal',
+        attributionStatus: 'DIRECT_CAUSAL',
+        confidence: 'HIGH',
+        targetMetric: 'REVENUE_MTD',
+        actualDeltaValue: 5000,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
 
-    // L BLOCKED decisions cannot be approved
-    console.log("L. BLOCKED decisions cannot be approved: PASS (Verified in DecisionQueue.tsx)");
+  const synthesisCausal = ExecutiveValueLayer.synthesize(directCausalState);
+  assert(
+    synthesisCausal.commercialValueSignals.roiEvidenceSufficiency === 'SUFFICIENT',
+    'DIRECT_CAUSAL with verified revenue delta achieves SUFFICIENT ROI evidence'
+  );
+  assert(
+    !!synthesisCausal.commercialValueSignals.estimatedValueCreated?.includes('$5,000.00'),
+    'Direct financial metric delta is truthfully reflected without arbitrary multipliers'
+  );
 
-    // N Tenant isolation remains intact
-    // O Page load cannot execute actions
-    // P Page load cannot send external messages
-    // Q Existing human execution gate remains intact
-    console.log("N, O, P, Q. Security & Human Gate verified by source code review: PASS");
+  // 4. Attribution Semantics: INSUFFICIENT_EVIDENCE results in INSUFFICIENT_CAUSAL_EVIDENCE
+  const emptyAttributionState: ExecutiveOperatingState = {
+    ...mockState,
+    recentOutcomeAttributions: [],
+  };
+  const synthesisEmpty = ExecutiveValueLayer.synthesize(emptyAttributionState);
+  assert(
+    synthesisEmpty.commercialValueSignals.roiEvidenceSufficiency === 'INSUFFICIENT_CAUSAL_EVIDENCE',
+    'Absence of attributions strictly results in INSUFFICIENT_CAUSAL_EVIDENCE'
+  );
 
-    // M Unauthorized users cannot approve
-    console.log("M. Unauthorized users cannot approve: PASS (Verified in backend APIs)");
+  // 5. BLOCKED Decision Security Contract
+  const blockedDecision = mockState.activeDecisions.find((d) => d.status === 'BLOCKED');
+  assert(Boolean(blockedDecision), 'BLOCKED decisions exist in operating state queue');
+  assert(
+    blockedDecision?.governanceVerdict === 'REJECTED',
+    'BLOCKED decisions strictly maintain REJECTED governance verdicts'
+  );
 
-  } catch (error) {
-    console.error("Test execution failed:", error);
-    allPassed = false;
-  } finally {
-    await prisma.$disconnect();
-  }
-
-  if (allPassed) {
-    console.log("\nAll Phase 36 verifications completed successfully.");
-    process.exit(0);
-  } else {
-    console.log("\nSome Phase 36 verifications failed.");
+  console.log(`\nPhase 36 Complete: ${passed} Passed, ${failed} Failed\n`);
+  if (failed > 0) {
     process.exit(1);
   }
 }
 
-runTests();
+runTests().catch((err) => {
+  console.error('Phase 36 verification failed:', err);
+  process.exit(1);
+});

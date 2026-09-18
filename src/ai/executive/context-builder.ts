@@ -7,6 +7,7 @@ import { calculateFreshness } from '../../lib/integrations/health';
 import { BusinessIntelligenceEngine } from './bi-engine';
 import { ExecutiveForecastingService } from './forecasting/forecasting-service';
 import { ExecutiveStrategyService } from './strategy/strategy-service';
+import { OutcomeEvaluator } from './outcomes/evaluator';
 
 export class BusinessContextBuilder {
   /**
@@ -159,12 +160,23 @@ export class BusinessContextBuilder {
           ((successCount + 0.5 * partialCount) / measuredOutcomes.length) * 100
         );
 
+        const effectivenessScore = OutcomeEvaluator.calculateEffectivenessScore({
+          totalRecommendations,
+          totalExecuted,
+          successCount,
+          partialCount,
+          totalMeasured: measuredOutcomes.length,
+          avgHealthScoreDelta: 0,
+          supportedCount: measuredOutcomes.filter((o) => o.hypothesisStatus === 'SUPPORTED').length,
+          refutedCount: refutedHypotheses.length,
+        });
+
         historicalPerformance = {
           totalRecommendations,
           totalExecuted,
           totalMeasured: measuredOutcomes.length,
           successRatePct,
-          effectivenessScore: 75,
+          effectivenessScore,
           domainPerformance: domainStats,
           topValidatedStrategies: validatedStrategies.slice(0, 3),
           refutedHypotheses: refutedHypotheses.slice(0, 3),

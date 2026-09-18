@@ -107,7 +107,7 @@ async function runPhase34Verification() {
     data: { organizationId: orgA.id, title: 'Evidence Dec', domain: 'REVENUE', priority: 'HIGH', decisionType: 'STRATEGIC', status: 'PENDING', governanceVerdict: 'INSUFFICIENT_EVIDENCE', description: 'test', governanceExplanation: 'test' }
   });
   
-  const stateAGov = await ExecutiveOperatingSystemService.getOperatingState(orgA.id);
+  const stateAGov = await ExecutiveOperatingSystemService.getOperatingState(orgA.id, { forceRefresh: true });
   const synAGov = ExecutiveValueLayer.synthesize(stateAGov);
   
   const blockedItem = synAGov.priorities.find((p: any) => p.sourceId === blockedDec.id);
@@ -212,7 +212,7 @@ async function runPhase34Verification() {
     }
   });
 
-  const stateAScenarioB = await ExecutiveOperatingSystemService.getOperatingState(orgA.id);
+  const stateAScenarioB = await ExecutiveOperatingSystemService.getOperatingState(orgA.id, { forceRefresh: true });
   const synAScenarioB = ExecutiveValueLayer.synthesize(stateAScenarioB);
   
   assert(synAScenarioB.commercialValueSignals.roiEvidenceSufficiency === 'INSUFFICIENT_CAUSAL_EVIDENCE', 'roiEvidenceSufficiency remains INSUFFICIENT_CAUSAL_EVIDENCE because causal provenance cannot be traced');
@@ -229,7 +229,7 @@ async function runPhase34Verification() {
 
   // Empty State (Telemetry vs Evidence distinction)
   console.log('\nEmpty-State Contract...');
-  const emptyState = await ExecutiveOperatingSystemService.getOperatingState(orgA.id);
+  const emptyState = await ExecutiveOperatingSystemService.getOperatingState(orgA.id, { forceRefresh: true });
   emptyState.businessContext = null as any;
   emptyState.activeForecasts = [];
   emptyState.recentLearningSignals = [];
@@ -239,9 +239,10 @@ async function runPhase34Verification() {
   assert(emptySyn.overallEvidenceSufficiency === 'INSUFFICIENT', 'EvidenceSufficiency=INSUFFICIENT correctly represents NO_TELEMETRY input state (0 signals)');
   
   // Partial Telemetry state
-  const partialState = await ExecutiveOperatingSystemService.getOperatingState(orgA.id);
+  const partialState = await ExecutiveOperatingSystemService.getOperatingState(orgA.id, { forceRefresh: true });
   partialState.businessContext = null as any; // Context nullified
   partialState.actionPlans = []; // Actions nullified
+  partialState.recentLearningSignals = []; // Learning nullified
   // Forecasts and Decisions kept = 2 signals
   const partialSyn = ExecutiveValueLayer.synthesize(partialState);
   assert(partialSyn.overallEvidenceSufficiency === 'PARTIAL', 'EvidenceSufficiency=PARTIAL correctly represents PARTIAL_TELEMETRY input state (2 signals)');

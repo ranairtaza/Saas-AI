@@ -1,20 +1,63 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, User, Mail, Shield } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 export default function ProfileSettingsPage() {
+  const { addToast } = useToast();
+  const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState("Executive User");
-  const [email, setEmail] = useState("executive@example.com");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("MEMBER");
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch("/api/settings/profile")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load user profile");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.user) {
+          setName(data.user.name || "");
+          setEmail(data.user.email || "");
+          setRole(data.user.role || "MEMBER");
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        addToast(err.message || "Failed to load profile", "error");
+      })
+      .finally(() => setIsFetching(false));
+  }, [addToast]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      addToast("Full name cannot be empty", "error");
+      return;
+    }
+
     setIsLoading(true);
-    // Mock save delay
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/settings/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update profile");
+      }
+
+      addToast("Profile updated successfully", "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to update profile", "error");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (

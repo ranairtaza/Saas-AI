@@ -1,27 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Building2, Users } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
+
+interface TeamMember {
+  id: string;
+  name: string | null;
+  email: string;
+  role: string;
+}
 
 export default function OrganizationSettingsPage() {
+  const { addToast } = useToast();
+  const [isFetching, setIsFetching] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-  const [companyName, setCompanyName] = useState("Acme Corp");
-  const [workspaceUrl, setWorkspaceUrl] = useState("acme-corp");
+  const [companyName, setCompanyName] = useState("");
+  const [workspaceUrl, setWorkspaceUrl] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch("/api/settings/organization")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load organization settings");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.organization) {
+          setCompanyName(data.organization.name || "");
+          setWorkspaceUrl(data.organization.workspaceUrl || "");
+          setTeamMembers(data.organization.users || []);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        addToast(err.message || "Failed to load organization data", "error");
+      })
+      .finally(() => setIsFetching(false));
+  }, [addToast]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    // Mock save delay
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  };
+    if (!companyName.trim()) {
+      addToast("Company name cannot be empty", "error");
+      return;
+    }
 
-  const teamMembers = [
-    { id: 1, name: "Executive User", email: "executive@example.com", role: "Owner" },
-    { id: 2, name: "Jane Smith", email: "jane.smith@example.com", role: "Admin" },
-    { id: 3, name: "Mark Johnson", email: "mark.j@example.com", role: "Member" },
-  ];
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/settings/organization", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update organization");
+      }
+
+      addToast("Organization details updated successfully", "success");
+    } catch (err: any) {
+      addToast(err.message || "Failed to update organization", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">

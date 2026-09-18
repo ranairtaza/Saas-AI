@@ -533,17 +533,27 @@ export class ExecutiveValueLayer {
     );
 
     if (verifiedAttributions.length > 0) {
-      let totalValue = 0;
+      let monetaryDelta = 0;
+      const nonMonetaryGains: string[] = [];
+
       for (const attr of verifiedAttributions) {
-        // Here we just accumulate the delta values if they are positive for simplicity
-        // In a real system, you'd map specific metrics to dollar values
-        const delta = Math.abs(attr.actualDeltaValue ?? 0);
-        totalValue += delta;
+        const metricName = (attr.targetMetric || '').toLowerCase();
+        const delta = attr.actualDeltaValue ?? 0;
+        const isMonetary = metricName.includes('revenue') || metricName.includes('pipeline') || metricName.includes('mrr') || metricName.includes('arr');
+
+        if (isMonetary) {
+          monetaryDelta += delta;
+        } else if (delta !== 0) {
+          nonMonetaryGains.push(`${delta > 0 ? '+' : ''}${delta} ${attr.targetMetric}`);
+        }
       }
-      
-      if (totalValue > 0) {
-        estimatedValueCreated = `$${(totalValue * 100).toFixed(2)} (Estimated based on verified KPI improvements)`; // Dummy dollar conversion for delta
+
+      if (monetaryDelta > 0) {
+        estimatedValueCreated = `$${monetaryDelta.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (Direct verified financial delta)`;
         roiEvidenceSufficiency = 'SUFFICIENT';
+      } else if (nonMonetaryGains.length > 0) {
+        estimatedValueCreated = `${nonMonetaryGains.join(', ')} (Verified KPI gains — financial model not configured)`;
+        roiEvidenceSufficiency = 'PARTIAL';
       }
     } else if (correlatedAttributions.length > 0) {
       roiEvidenceSufficiency = 'PARTIAL';

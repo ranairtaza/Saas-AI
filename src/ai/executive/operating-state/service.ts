@@ -3,73 +3,97 @@ import { isDatabaseWritesAllowed } from '../../../lib/db-guard';
 import { ExecutiveOperatingState } from './types';
 import { BusinessContextBuilder } from '../context-builder';
 
+interface CacheEntry {
+  state: ExecutiveOperatingState;
+  cachedAt: number;
+}
+
+const stateCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 30_000; // 30 seconds TTL for fast deterministic dashboard loads
+
+export function invalidateOperatingStateCache(organizationId?: string): void {
+  if (organizationId) {
+    stateCache.delete(organizationId);
+  } else {
+    stateCache.clear();
+  }
+}
+
 export class ExecutiveOperatingSystemService {
   /**
    * Synthesizes the active business command loop state.
    * This is a read-only deterministic operation that aggregates existing intelligence.
    */
-  static async getOperatingState(organizationId: string): Promise<ExecutiveOperatingState> {
-    // 1. Fetch Business Context
-    const businessContext = await BusinessContextBuilder.buildBusinessContext(organizationId);
+  static async getOperatingState(
+    organizationId: string,
+    options?: { forceRefresh?: boolean }
+  ): Promise<ExecutiveOperatingState> {
+    // Check in-memory org cache for sub-second deterministic retrieval
+    if (!options?.forceRefresh) {
+      const cached = stateCache.get(organizationId);
+      if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+        return cached.state;
+      }
+    }
 
-    // 2. Fetch Active Governance Policy
-    const policy = await prisma.executiveGovernancePolicy.findFirst({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // Parallel fetch of all executive entities (eliminates sequential N+1 latency)
+    const [
+      businessContext,
+      policy,
+      decisions,
+      learningSignals,
+      forecasts,
+      actionPlans,
+      pendingActions,
+      recentOutcomeAttributions,
+    ] = await Promise.all([
+      BusinessContextBuilder.buildBusinessContext(organizationId),
+      prisma.executiveGovernancePolicy.findFirst({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => null),
+      prisma.executiveDecision.findMany({
+        where: {
+          organizationId,
+          status: { in: ['PENDING', 'APPROVED', 'DEFERRED'] },
+        },
+        orderBy: { priority: 'desc' },
+        take: 20,
+      }).catch(() => []),
+      prisma.executiveLearningSignal.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }).catch(() => []),
+      prisma.executiveForecast.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }).catch(() => []),
+      prisma.executiveActionPlan.findMany({
+        where: {
+          organizationId,
+          status: { in: ['PROPOSED', 'GOVERNANCE_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'EXECUTING'] },
+        },
+        orderBy: { priorityScore: 'desc' },
+        take: 20,
+      }).catch(() => []),
+      prisma.pendingAction.findMany({
+        where: {
+          organizationId,
+          status: 'WAITING',
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }).catch(() => []),
+      prisma.executiveOutcomeAttribution.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      }).catch(() => []),
+    ]);
 
-    // 3. Fetch Active Decisions
-    const decisions = await prisma.executiveDecision.findMany({
-      where: {
-        organizationId,
-        status: { in: ['PENDING', 'APPROVED', 'DEFERRED'] },
-      },
-      orderBy: { priority: 'desc' },
-      take: 20,
-    });
-
-    // 4. Fetch Recent Learning Signals
-    const learningSignals = await prisma.executiveLearningSignal.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-    });
-
-    // 5. Fetch Active Forecasts
-    const forecasts = await prisma.executiveForecast.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-      take: 15,
-    });
-
-    // 6. Fetch Active Action Plans
-    const actionPlans = await prisma.executiveActionPlan.findMany({
-      where: {
-        organizationId,
-        status: { in: ['PROPOSED', 'GOVERNANCE_REVIEW', 'PENDING_APPROVAL', 'APPROVED', 'EXECUTING'] },
-      },
-      orderBy: { priorityScore: 'desc' },
-      take: 20,
-    });
-
-    // 7. Fetch Human-gated Pending Actions (Execution Boundary)
-    const pendingActions = await prisma.pendingAction.findMany({
-      where: {
-        organizationId,
-        status: 'WAITING',
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-
-    // 8. Fetch Recent Outcome Attributions
-    const recentOutcomeAttributions = await prisma.executiveOutcomeAttribution.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-
-    return {
+    const result: ExecutiveOperatingState = {
       organizationId,
       timestamp: new Date().toISOString(),
       businessContext,
@@ -142,5 +166,8 @@ export class ExecutiveOperatingSystemService {
         createdAt: a.createdAt.toISOString(),
       })),
     };
+
+    stateCache.set(organizationId, { state: result, cachedAt: Date.now() });
+    return result;
   }
 }

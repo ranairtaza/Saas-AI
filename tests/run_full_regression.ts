@@ -20,19 +20,40 @@ const testSuites = [
   'tests/verify_phase32.ts',
   'tests/verify_phase33_strict.ts',
   'tests/verify_phase34_strict.ts',
+  'tests/verify_phase35_strict.ts',
+  'tests/verify_phase36.ts',
+  'tests/verify_phase38.ts',
+  'tests/verify_phase39.ts',
+  'tests/verify_phase40.ts',
+  'tests/verify_phase41.ts',
+  'tests/verify_phase42.ts',
+  'tests/verify_phase43.ts',
+  'tests/verify_phase44.ts',
+  'tests/verify_phase46.ts',
 ];
 
 console.log('==========================================================================');
-console.log('🧪 RUNNING FULL 19-SUITE REGRESSION MATRIX (PHASES 18 - 34)');
+console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 46)`);
 console.log('==========================================================================\n');
 
 let allPassed = true;
+
+const dbWriteSuites = new Set([
+  'tests/verify_phase30_real_db.ts',
+  'tests/verify_phase31.ts',
+  'tests/verify_phase32.ts',
+  'tests/verify_phase33_strict.ts',
+  'tests/verify_phase34_strict.ts',
+  'tests/verify_phase35_strict.ts',
+  'tests/verify_phase38.ts',
+  'tests/verify_phase40.ts',
+]);
 
 for (const suite of testSuites) {
   try {
     console.log(`▶ Running ${suite}...`);
     const env = { ...process.env };
-    if (suite === 'tests/verify_phase30_real_db.ts' || suite === 'tests/verify_phase31.ts' || suite === 'tests/verify_phase32.ts' || suite === 'tests/verify_phase33_strict.ts' || suite === 'tests/verify_phase34_strict.ts') {
+    if (dbWriteSuites.has(suite)) {
       env.LEADMACHINE_DB_WRITES_ENABLED = 'true';
     } else {
       env.LEADMACHINE_DB_WRITES_ENABLED = 'false';
@@ -48,7 +69,7 @@ for (const suite of testSuites) {
 
 if (allPassed) {
   console.log('==========================================================================');
-  console.log('🎉 ALL 19 TEST SUITES PASSED CLEANLY WITH ZERO REGRESSIONS!');
+  console.log(`🎉 ALL ${testSuites.length} TEST SUITES PASSED CLEANLY WITH ZERO REGRESSIONS!`);
   console.log('==========================================================================');
 }
 

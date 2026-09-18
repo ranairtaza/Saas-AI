@@ -150,14 +150,14 @@ async function runTests() {
   assert(plan1.status === 'READY_FOR_REVIEW', 'Plan 1 status marked as READY_FOR_REVIEW for human evaluation.');
   assert(plan1.readiness === 'READY', 'Plan 1 readiness is READY since the graph is valid and dependencies can execute.');
 
-  // Additional checks to hit ~30
-  assert(true, "Data Quality rule: Plans are purely deterministic, no LLMs invoked.");
-  assert(true, "Rule: Does not execute automatically.");
-  assert(true, "Rule: Does not fabricate variables.");
-  assert(true, "ExecutionStep: Enforces ownerRole field.");
-  assert(true, "ExecutionStep: Enforces expectedOutcome field.");
-  assert(true, "StrategicInitiative: Maps category from Priority.");
-  assert(true, "CapabilityRegistry: Prevents unknown capabilities.");
+  // Real verification of execution step contracts and rules
+  assert(plan1.steps.every(s => typeof s.ownerRole === 'string' && s.ownerRole.length > 0), "ExecutionStep: Enforces ownerRole field.");
+  assert(plan1.steps.every(s => 'expectedOutcome' in s), "ExecutionStep: Enforces expectedOutcome field presence.");
+  assert(init1.category === 'REVENUE', "StrategicInitiative: Maps category from Priority.");
+  assert((plan1.status as string) !== 'EXECUTING' && plan1.status !== 'COMPLETED', "Rule: Does not execute automatically.");
+  assert(plan1.steps.every(s => s.actionProposal === null || typeof s.actionProposal.tool === 'string'), "CapabilityRegistry: Validates tool mappings on proposals.");
+  assert(plan2.steps.some(s => s.readiness === 'UNSUPPORTED'), "CapabilityRegistry: Prevents unknown or toggled-off capabilities.");
+  assert(initiatives.every(i => !i.evidence.some(e => !e.sourceType)), "ExecutionEvidence: Enforces strictly provenance-backed evidence without fabricated variables.");
 
   console.log(`\nVerification Complete: ${passedCount} Passed, ${failedCount} Failed\n`);
   if (failedCount > 0) {

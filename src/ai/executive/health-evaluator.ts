@@ -21,27 +21,51 @@ export class BusinessHealthEvaluator {
     // 4. OPERATIONAL HEALTH (Weight: 0.15)
     const operationsHealth = this.calculateOperationalHealth(context, options);
 
-    // Composite Weighted Score
-    const compositeRaw =
-      revenueHealth.score * 0.35 +
-      pipelineHealth.score * 0.25 +
-      goalHealth.score * 0.25 +
-      operationsHealth.score * 0.15;
+    // Determine evidence sufficiency across domains
+    const domains = [revenueHealth, pipelineHealth, goalHealth, operationsHealth];
+    const noDataDomains = domains.filter((d) => d.evidenceSufficiency === 'NO_DATA');
+    
+    let evidenceSufficiency: 'NO_DATA' | 'INSUFFICIENT_DATA' | 'PARTIAL_DATA' | 'SUFFICIENT_DATA' = 'SUFFICIENT_DATA';
+    let overallScore = 0;
+    let status: 'HEALTHY' | 'STABLE' | 'ATTENTION_NEEDED' | 'CRITICAL_RISK' = 'STABLE';
 
-    const overallScore = Math.min(100, Math.max(0, Math.round(compositeRaw)));
-    const status = this.getHealthStatus(overallScore);
+    if (noDataDomains.length >= 3) {
+      evidenceSufficiency = 'NO_DATA';
+      overallScore = 0;
+      status = 'ATTENTION_NEEDED';
+    } else if (noDataDomains.length > 0) {
+      evidenceSufficiency = 'PARTIAL_DATA';
+      // Re-normalize weights across domains that actually have data
+      const activeDomains = domains.filter((d) => d.evidenceSufficiency !== 'NO_DATA');
+      const totalWeight = activeDomains.reduce((sum, d) => sum + d.weight, 0);
+      const compositeRaw = activeDomains.reduce((sum, d) => sum + d.score * (d.weight / totalWeight), 0);
+      overallScore = Math.min(100, Math.max(0, Math.round(compositeRaw)));
+      status = this.getHealthStatus(overallScore);
+    } else {
+      evidenceSufficiency = 'SUFFICIENT_DATA';
+      const compositeRaw =
+        revenueHealth.score * 0.35 +
+        pipelineHealth.score * 0.25 +
+        goalHealth.score * 0.25 +
+        operationsHealth.score * 0.15;
+      overallScore = Math.min(100, Math.max(0, Math.round(compositeRaw)));
+      status = this.getHealthStatus(overallScore);
+    }
 
-    const summary = this.generateSummary(overallScore, status, {
-      revenue: revenueHealth,
-      pipeline: pipelineHealth,
-      goals: goalHealth,
-      operations: operationsHealth,
-    });
+    const summary = evidenceSufficiency === 'NO_DATA'
+      ? 'Awaiting business telemetry: Connect CRM or configure strategic goals to generate comprehensive health scoring.'
+      : this.generateSummary(overallScore, status, {
+          revenue: revenueHealth,
+          pipeline: pipelineHealth,
+          goals: goalHealth,
+          operations: operationsHealth,
+        });
 
     return BusinessHealthSchema.parse({
       overallScore,
       status,
       evaluatedAt: new Date(),
+      evidenceSufficiency,
       domains: {
         revenue: revenueHealth,
         pipeline: pipelineHealth,
@@ -57,8 +81,9 @@ export class BusinessHealthEvaluator {
       (g) => g.kpiKey.toLowerCase().includes('revenue') || g.kpiKey.toLowerCase().includes('mrr')
     );
 
-    let score = 80;
+    let score = 0;
     const factors: string[] = [];
+    let evidenceSufficiency: 'NO_DATA' | 'INSUFFICIENT_DATA' | 'PARTIAL_DATA' | 'SUFFICIENT_DATA' = 'SUFFICIENT_DATA';
 
     if (revGoal) {
       if (revGoal.status === 'ACHIEVED') {
@@ -75,37 +100,61 @@ export class BusinessHealthEvaluator {
         factors.push(`Revenue milestone is significantly behind pace`);
       }
     } else {
-      score = (typeof ((context.telemetry.metrics.revenueMTD?.value || 0) || 0) === 'number' && ((context.telemetry.metrics.revenueMTD?.value || 0) || 0) > 0) ? 80 : 60;
-      factors.push(`Baseline MTD revenue recorded: $${(((context.telemetry.metrics.revenueMTD?.value || 0) || 0) || 0).toLocaleString()}`);
+      const revVal = context.telemetry.metrics.revenueMTD?.value;
+      if (typeof revVal === 'number' && revVal > 0) {
+        score = 80;
+        factors.push(`Baseline MTD revenue recorded: $${revVal.toLocaleString()}`);
+        evidenceSufficiency = 'PARTIAL_DATA';
+      } else {
+        score = 0;
+        factors.push('No active revenue goals and zero revenue telemetry recorded');
+        evidenceSufficiency = 'NO_DATA';
+      }
     }
 
     return {
       score: Math.min(100, Math.max(0, score)),
       status: this.getHealthStatus(score),
       weight: 0.35,
-      rationale: `Revenue health evaluated at ${score}/100 based on active target pacing.`,
+      rationale: evidenceSufficiency === 'NO_DATA'
+        ? 'Revenue health unmeasured: No revenue goals or telemetry synced.'
+        : `Revenue health evaluated at ${score}/100 based on active target pacing.`,
       factors,
+      evidenceSufficiency,
     };
   }
 
   private static calculatePipelineHealth(context: BusinessContext): DomainHealth {
-    let score = 85;
+    const totalLeads = context.telemetry.metrics.totalLeads?.value;
+    const qualifiedLeads = context.telemetry.metrics.qualifiedLeads?.value;
+    const unassigned = context.telemetry.metrics.unassignedHighPriorityLeads?.value ?? 0;
+
+    let score = 0;
     const factors: string[] = [];
+    let evidenceSufficiency: 'NO_DATA' | 'INSUFFICIENT_DATA' | 'PARTIAL_DATA' | 'SUFFICIENT_DATA' = 'SUFFICIENT_DATA';
 
-    // Qualified leads bonus
-    if ((typeof (context.telemetry.metrics.qualifiedLeads?.value || 0) === 'number' && (context.telemetry.metrics.qualifiedLeads?.value || 0) > 5)) {
-      score += 5;
-      factors.push(`Healthy volume of ${(context.telemetry.metrics.qualifiedLeads?.value || 0)} qualified leads`);
-    }
-
-    // Unassigned backlog penalty
-    const unassigned = (context.telemetry.metrics.unassignedHighPriorityLeads?.value || 0);
-    if ((unassigned ?? 0) > 0) {
-      const penalty = Math.min(45, (unassigned || 0) * 10);
-      score -= penalty;
-      factors.push(`${unassigned} unassigned high-priority lead backlog (-${penalty} pts)`);
+    if (totalLeads === null || totalLeads === undefined || totalLeads === 0) {
+      score = 0;
+      factors.push('No leads discovered or synced in CRM');
+      evidenceSufficiency = 'NO_DATA';
     } else {
-      factors.push('Zero unassigned priority lead backlog');
+      score = 75; // Baseline when leads exist
+      if (typeof qualifiedLeads === 'number' && qualifiedLeads > 5) {
+        score += 15;
+        factors.push(`Healthy volume of ${qualifiedLeads} qualified leads`);
+      } else if (typeof qualifiedLeads === 'number' && qualifiedLeads > 0) {
+        score += 5;
+        factors.push(`${qualifiedLeads} qualified leads identified`);
+      }
+
+      if (unassigned > 0) {
+        const penalty = Math.min(45, unassigned * 10);
+        score -= penalty;
+        factors.push(`${unassigned} unassigned high-priority lead backlog (-${penalty} pts)`);
+      } else {
+        factors.push('Zero unassigned priority lead backlog');
+      }
+      evidenceSufficiency = 'SUFFICIENT_DATA';
     }
 
     score = Math.min(100, Math.max(0, score));
@@ -114,19 +163,23 @@ export class BusinessHealthEvaluator {
       score,
       status: this.getHealthStatus(score),
       weight: 0.25,
-      rationale: `Pipeline health evaluated at ${score}/100 based on volume and allocation efficiency.`,
+      rationale: evidenceSufficiency === 'NO_DATA'
+        ? 'Pipeline health unmeasured: Zero CRM leads available.'
+        : `Pipeline health evaluated at ${score}/100 based on volume and allocation efficiency.`,
       factors,
+      evidenceSufficiency,
     };
   }
 
   private static calculateGoalHealth(context: BusinessContext): DomainHealth {
     if (context.goals.length === 0) {
       return {
-        score: 75,
-        status: 'STABLE',
+        score: 0,
+        status: 'ATTENTION_NEEDED',
         weight: 0.25,
         rationale: 'No active strategic goals configured.',
-        factors: ['Default baseline applied (75/100)'],
+        factors: ['No strategic targets active (Configure goals to track progress)'],
+        evidenceSufficiency: 'NO_DATA',
       };
     }
 
@@ -152,6 +205,7 @@ export class BusinessHealthEvaluator {
       weight: 0.25,
       rationale: `Average strategic goal progress across ${context.goals.length} active target(s).`,
       factors,
+      evidenceSufficiency: 'SUFFICIENT_DATA',
     };
   }
 
@@ -185,6 +239,7 @@ export class BusinessHealthEvaluator {
       weight: 0.15,
       rationale: `Operational stability evaluated at ${score}/100.`,
       factors,
+      evidenceSufficiency: 'SUFFICIENT_DATA',
     };
   }
 

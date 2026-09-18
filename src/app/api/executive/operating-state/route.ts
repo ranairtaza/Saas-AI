@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const state = await ExecutiveOperatingSystemService.getOperatingState(user.organizationId);
+    const forceRefresh = req.nextUrl.searchParams.get('refresh') === 'true';
+    const state = await ExecutiveOperatingSystemService.getOperatingState(user.organizationId, { forceRefresh });
 
     // Synthesize business value layer on top of operating state
     const valueSynthesis = ExecutiveValueLayer.synthesize(state);

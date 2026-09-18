@@ -1,6 +1,9 @@
 // Setup Mock Prisma for tenant isolation and Executive Context tests BEFORE ANY IMPORTS
 export {};
 
+process.env.LEADMACHINE_DB_WRITES_ENABLED = 'true';
+process.env.LEADMACHINE_DATABASE_ID = 'leadmachine';
+
 let mockGoalsDb: any[] = [];
 let mockMetricsDb: any[] = [];
 let mockForecastsDb: any[] = [];

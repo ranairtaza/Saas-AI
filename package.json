@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
-    "test": "tsx tests/run_full_regression.ts",
+    "test": "npx tsx tests/run_full_regression.ts",
     "db:seed": "node seed.mjs"
   },
   "dependencies": {

@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/db';
 import { calculateFreshness } from '../../lib/integrations/health';
-import { CrmSnapshotter } from '../../business/metrics/crm-snapshotter';
+// CrmSnapshotter is intentionally NOT imported here to guarantee read-only telemetry queries with zero GET side-effects
 
 export interface TelemetryMetric {
   value: number | null;
@@ -37,7 +37,7 @@ export interface UnifiedTelemetry {
 
 export class BusinessIntelligenceEngine {
   static async assembleTelemetry(organizationId: string): Promise<UnifiedTelemetry> {
-    await CrmSnapshotter.snapshotOrganization(organizationId);
+    // Read-only deterministic telemetry: DO NOT perform database writes/snapshots on GET
 
     const metrics = await prisma.businessMetric.findMany({
       where: { organizationId },
@@ -97,6 +97,24 @@ export class BusinessIntelligenceEngine {
       }
     }
 
+    // Read-only CRM counts if snapshots are not yet taken (ZERO database writes)
+    let liveTotalLeads: number | null = null;
+    let liveQualifiedLeads: number | null = null;
+    let liveUnassignedPriorityLeads = 0;
+
+    try {
+      const [totalCount, qualCount, unassignedCount] = await Promise.all([
+        !metricMap.has('TOTAL_LEADS') ? prisma.lead.count({ where: { organizationId } }) : Promise.resolve(null),
+        !metricMap.has('QUALIFIED_LEADS') ? prisma.lead.count({ where: { organizationId, score: { gte: 75 } } }) : Promise.resolve(null),
+        prisma.lead.count({ where: { organizationId, ownerId: null, score: { gte: 75 } } }).catch(() => 0),
+      ]);
+      liveTotalLeads = totalCount;
+      liveQualifiedLeads = qualCount;
+      liveUnassignedPriorityLeads = unassignedCount ?? 0;
+    } catch {
+      // Non-blocking read fallback
+    }
+
     const resolveMetric = (key: string): TelemetryMetric => {
       const data = metricMap.get(key);
       if (data) {
@@ -108,6 +126,28 @@ export class BusinessIntelligenceEngine {
           confidence: data.confidence,
           conflict: data.conflict,
           lastUpdatedAt: data.lastUpdatedAt
+        };
+      }
+      if (key === 'TOTAL_LEADS' && liveTotalLeads !== null) {
+        return {
+          value: liveTotalLeads,
+          unit: 'COUNT',
+          source: 'crm',
+          freshness: 'REAL_TIME',
+          confidence: 'HIGH',
+          conflict: false,
+          lastUpdatedAt: null,
+        };
+      }
+      if (key === 'QUALIFIED_LEADS' && liveQualifiedLeads !== null) {
+        return {
+          value: liveQualifiedLeads,
+          unit: 'COUNT',
+          source: 'crm',
+          freshness: 'REAL_TIME',
+          confidence: 'HIGH',
+          conflict: false,
+          lastUpdatedAt: null,
         };
       }
       return {
@@ -141,13 +181,13 @@ export class BusinessIntelligenceEngine {
         qualifiedLeads: resolveMetric('QUALIFIED_LEADS'),
         activeLeadsCount: resolveMetric('TOTAL_LEADS'),
         unassignedHighPriorityLeads: {
-          value: 0,
+          value: liveUnassignedPriorityLeads,
           unit: 'COUNT',
           source: 'crm',
           freshness: 'REAL_TIME',
           confidence: 'HIGH',
           conflict: false,
-          lastUpdatedAt: new Date()
+          lastUpdatedAt: null
         },
         pipelineValue: resolveMetric('PIPELINE_VALUE')
       },
