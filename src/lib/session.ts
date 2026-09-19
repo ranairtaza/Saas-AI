@@ -2,7 +2,20 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
 import { hashSessionToken } from '@/lib/auth';
 
+let testUserOverride: any = undefined;
+
+export function setTestUserOverride(user: any) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('setTestUserOverride is strictly forbidden in production');
+  }
+  testUserOverride = user;
+}
+
 export async function getCurrentUser() {
+  if (testUserOverride !== undefined) {
+    return testUserOverride;
+  }
+
   const cookieStore = await cookies();
   let sessionToken = cookieStore.get('session')?.value;
 

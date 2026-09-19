@@ -10,6 +10,7 @@ import {
   recordTelemetryEvent,
   getTelemetryPipelineHealth,
 } from '../src/lib/observability/telemetry';
+import { checkGeminiHealth, checkStripeHealth } from '../src/lib/observability/dependency-health';
 
 console.log('==========================================================================');
 console.log('🧪 LEADMACHINE — PHASE 48 VERIFICATION');
@@ -70,8 +71,8 @@ async function runTests() {
     assert(!serialized.includes(process.env.PROVIDER_ENCRYPTION_KEY || 'impossible_key'));
   });
 
-  // 4. Gemini Provider status distinguishes LIVE, NOT_CONFIGURED, and TEST/MOCK
-  await it('4. Gemini status reflects actual key state without fake values', () => {
+  // 4. Gemini Provider status distinguishes LIVE/AVAILABLE, NOT_CONFIGURED, and DEGRADED (mock)
+  await it('4. Gemini status reflects actual key state without fake values', async () => {
     const originalGoogleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
     const originalGeminiKey = process.env.GEMINI_API_KEY;
 
@@ -79,15 +80,14 @@ async function runTests() {
       // Case A: Missing
       delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       delete process.env.GEMINI_API_KEY;
-      const hasKey = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY);
-      const statusA = hasKey ? 'LIVE' : 'NOT_CONFIGURED';
-      assert.strictEqual(statusA, 'NOT_CONFIGURED');
+      const resA = await checkGeminiHealth();
+      assert.strictEqual(resA.status, 'NOT_CONFIGURED');
+      assert.strictEqual(resA.configured, false);
 
       // Case B: Mock key
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = 'mock_key';
-      const isMock = process.env.GOOGLE_GENERATIVE_AI_API_KEY === 'mock_key';
-      const statusB = isMock ? 'TEST/MOCK' : 'LIVE';
-      assert.strictEqual(statusB, 'TEST/MOCK', 'Mock key must never be reported as LIVE in production');
+      const resB = await checkGeminiHealth();
+      assert.strictEqual(resB.status, 'DEGRADED', 'Mock key must report DEGRADED in production dependency health');
     } finally {
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = originalGoogleKey;
       process.env.GEMINI_API_KEY = originalGeminiKey;
@@ -95,12 +95,13 @@ async function runTests() {
   });
 
   // 5. Stripe Provider status is fail-closed
-  await it('5. Stripe status is fail-closed when secret key is absent', () => {
+  await it('5. Stripe status is fail-closed when secret key is absent', async () => {
     const originalStripeKey = process.env.STRIPE_SECRET_KEY;
     try {
       delete process.env.STRIPE_SECRET_KEY;
-      const status = process.env.STRIPE_SECRET_KEY ? 'HEALTHY' : 'NOT_CONFIGURED';
-      assert.strictEqual(status, 'NOT_CONFIGURED');
+      const res = await checkStripeHealth();
+      assert.strictEqual(res.status, 'NOT_CONFIGURED');
+      assert.strictEqual(res.configured, false);
     } finally {
       process.env.STRIPE_SECRET_KEY = originalStripeKey;
     }

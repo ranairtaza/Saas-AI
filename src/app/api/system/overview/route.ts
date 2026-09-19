@@ -26,6 +26,13 @@ export async function GET() {
       );
     }
 
+    if (!isGlobalOperator && !user.organizationId) {
+      return NextResponse.json(
+        { error: 'Forbidden: User is not associated with an organization' },
+        { status: 403 }
+      );
+    }
+
     // Tenant isolation
     const effectiveOrgId = isGlobalOperator ? null : user.organizationId;
     const orgFilter = effectiveOrgId ? { organizationId: effectiveOrgId } : {};

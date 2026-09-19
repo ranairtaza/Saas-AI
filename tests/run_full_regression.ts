@@ -35,6 +35,7 @@ const testSuites = [
   'tests/verify_phase47.ts',
   'tests/verify_phase47_1.ts',
   'tests/verify_phase48.ts',
+  'tests/verify_phase48_1.ts',
 ];
 
 console.log('==========================================================================');
@@ -53,6 +54,7 @@ const dbWriteSuites = new Set([
   'tests/verify_phase38.ts',
   'tests/verify_phase40.ts',
   'tests/verify_phase47_1.ts',
+  'tests/verify_phase48_1.ts',
 ]);
 
 for (const suite of testSuites) {

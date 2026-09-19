@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
-import prisma from '@/lib/db';
 import { isDatabaseWritesAllowed } from '@/lib/db-guard';
 import { checkMigrationConsistency } from '@/lib/observability/migration-checker';
 import { validateSystemConfig } from '@/lib/observability/config-validator';
 import { getDeploymentMetadata } from '@/lib/observability/deployment';
 import { getTelemetryPipelineHealth } from '@/lib/observability/telemetry';
 import { isSystemOperator } from '@/permissions/definitions';
+import { getSystemDependencyHealth } from '@/lib/observability/dependency-health';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,101 +25,70 @@ export async function GET() {
       );
     }
 
-    // 1. PostgreSQL Database & Latency
-    let dbStatus: 'AVAILABLE' | 'UNAVAILABLE' = 'AVAILABLE';
-    let dbLatencyMs = 0;
-    try {
-      const start = Date.now();
-      await prisma.$queryRaw`SELECT 1`;
-      dbLatencyMs = Date.now() - start;
-    } catch {
-      dbStatus = 'UNAVAILABLE';
-    }
+    const effectiveOrgId = isGlobalOperator ? null : user.organizationId;
 
-    // 2. Migration State (Real detection)
+    // 1. Centralized dependency health evaluation
+    const healthReport = await getSystemDependencyHealth({
+      organizationId: effectiveOrgId,
+      forceFresh: true,
+    });
+
+    // 2. Migration state (Dynamic detection)
     const migrationCheck = await checkMigrationConsistency();
 
     // 3. Database Write Safety Configuration
     const writesAllowed = isDatabaseWritesAllowed();
     const dbIdentifier = process.env.LEADMACHINE_DATABASE_ID || 'unspecified';
 
-    // 4. Gemini AI Configuration (Truthful status)
-    const hasGeminiKey = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY);
-    const isMockGemini = process.env.GOOGLE_GENERATIVE_AI_API_KEY === 'mock_key';
-    const geminiStatus = hasGeminiKey ? (isMockGemini ? 'TEST/MOCK' : 'CONFIGURED') : 'NOT_CONFIGURED';
-
-    // 5. Stripe Billing Configuration
-    const hasStripeKey = Boolean(process.env.STRIPE_SECRET_KEY);
-    const stripeStatus = hasStripeKey ? 'CONFIGURED' : 'NOT_CONFIGURED';
-
-    // 6. Upstash Redis Cache
-    const hasUpstash = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-    const upstashStatus = hasUpstash ? 'CONFIGURED' : 'NOT_CONFIGURED';
-
-    // 7. Inngest Background Workflows
-    const hasInngest = Boolean(process.env.INNGEST_EVENT_KEY || process.env.INNGEST_SIGNING_KEY);
-    const inngestStatus = hasInngest ? 'CONFIGURED' : 'NOT_CONFIGURED';
-
-    // 8. Integrations Subsystem
-    let integrationsStatus: 'AVAILABLE' | 'DEGRADED' | 'NOT_CONFIGURED' = 'NOT_CONFIGURED';
-    try {
-      const activeConnections = await prisma.integrationConnection.count({ where: { status: 'ACTIVE' } });
-      const failingConnections = await prisma.integrationConnection.count({ where: { status: 'FAILING' } });
-      if (activeConnections > 0) {
-        integrationsStatus = failingConnections > 0 ? 'DEGRADED' : 'AVAILABLE';
-      }
-    } catch {
-      integrationsStatus = 'DEGRADED';
-    }
-
-    // 9. Config Validation Summary
+    // 4. Config Validation Summary
     const configResults = validateSystemConfig();
     const missingRequired = configResults.filter((c) => c.required && c.status === 'MISSING').length;
 
-    // 10. Deployment & Observability Pipeline Health
+    // 5. Deployment & Observability Pipeline Health
     const deployment = getDeploymentMetadata();
     const telemetryPipeline = getTelemetryPipelineHealth();
 
-    const overallStatus =
-      dbStatus === 'AVAILABLE' && migrationCheck.status === 'SYNCHRONIZED' && missingRequired === 0
-        ? 'HEALTHY'
-        : dbStatus === 'AVAILABLE'
-        ? 'DEGRADED'
-        : 'UNAVAILABLE';
+    // Determine overall status
+    let overallStatus: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' = healthReport.overallStatus;
+    if (healthReport.dependencies.database.status !== 'AVAILABLE') {
+      overallStatus = 'UNAVAILABLE';
+    } else if (migrationCheck.status !== 'SYNCHRONIZED' || missingRequired > 0) {
+      overallStatus = 'DEGRADED';
+    }
 
     return NextResponse.json({
-      timestamp: new Date().toISOString(),
+      timestamp: healthReport.checkedAt,
       overallStatus,
       tenantContext: {
         isGlobalOperator,
-        organizationId: isGlobalOperator ? null : user.organizationId,
+        organizationId: effectiveOrgId,
       },
       deployment,
       dependencies: {
         database: {
-          status: dbStatus,
-          latencyMs: dbLatencyMs,
+          status: healthReport.dependencies.database.status,
+          latencyMs: healthReport.dependencies.database.latencyMs,
           writeGate: writesAllowed ? 'WRITES_ENABLED' : 'READ_ONLY_SAFEGUARD',
           databaseId: dbIdentifier,
           migrations: migrationCheck,
         },
         ai: {
-          status: geminiStatus,
+          status: healthReport.dependencies.ai.status,
           provider: 'gemini',
           model: 'gemini-1.5-pro',
         },
         billing: {
-          status: stripeStatus,
+          status: healthReport.dependencies.billing.status,
           failClosedActive: true,
         },
         cache: {
-          status: upstashStatus,
+          status: healthReport.dependencies.cache.status,
         },
         jobs: {
-          status: inngestStatus,
+          status: healthReport.dependencies.jobs.status,
         },
         integrations: {
-          status: integrationsStatus,
+          status: healthReport.dependencies.integrations.status,
         },
       },
       observabilityPipeline: telemetryPipeline,
@@ -129,7 +98,7 @@ export async function GET() {
         valid: configResults.filter((c) => c.status === 'CONFIGURED').length,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[API /api/system/health] Error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

@@ -20,6 +20,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Strict tenant barrier: Non-operator must have an active organizationId
+    if (!isGlobalOperator && !user.organizationId) {
+      return NextResponse.json(
+        { error: 'Forbidden: User is not associated with an organization' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get('limit') || '50'), 100);
     const severity = searchParams.get('severity');
@@ -37,6 +45,8 @@ export async function GET(req: NextRequest) {
 
     if (effectiveOrgId) {
       where.organizationId = effectiveOrgId;
+    } else if (!isGlobalOperator) {
+      where.organizationId = user.organizationId;
     }
 
     if (severity) {

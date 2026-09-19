@@ -8,6 +8,7 @@ import { checkDataQuality } from '@/lib/observability/data-quality';
 import { getDeploymentMetadata } from '@/lib/observability/deployment';
 import { getTelemetryPipelineHealth, getAggregateCounters } from '@/lib/observability/telemetry';
 import { isSystemOperator } from '@/permissions/definitions';
+import { getSystemDependencyHealth } from '@/lib/observability/dependency-health';
 import {
   SYSTEM_SLOW_REQUEST_MS,
   SYSTEM_5XX_ALERT_THRESHOLD,
@@ -17,14 +18,15 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-interface CacheRecord {
+export interface SnapshotCacheRecord {
   data: any;
   cachedAt: number;
   timeRange: string;
+  organizationId: string | null;
 }
 
-// Tenant-scoped memory cache to guarantee zero cross-tenant cache leakage
-const tenantSnapshotCache = new Map<string, CacheRecord>();
+// Tenant-scoped in-memory cache keyed strictly by organizationId + timeRange
+export const tenantSnapshotCache = new Map<string, SnapshotCacheRecord>();
 
 export async function GET(req: NextRequest) {
   try {
@@ -41,6 +43,14 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Strict tenant barrier: Non-operator must have an active organizationId
+    if (!isGlobalOperator && !user.organizationId) {
+      return NextResponse.json(
+        { error: 'Forbidden: User is not associated with an organization' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const timeRange = searchParams.get('timeRange') || '24h';
     const forceRefresh = searchParams.get('refresh') === 'true';
@@ -49,7 +59,7 @@ export async function GET(req: NextRequest) {
     const effectiveOrgId = isGlobalOperator ? searchParams.get('organizationId') || null : user.organizationId;
     const orgFilter = effectiveOrgId ? { organizationId: effectiveOrgId } : {};
 
-    // Cache key incorporates tenant identity
+    // Cache key incorporates tenant identity: <organizationId>:<timeRange>
     const cacheKey = `${effectiveOrgId || 'global'}:${timeRange}`;
     const cached = tenantSnapshotCache.get(cacheKey);
 
@@ -68,9 +78,9 @@ export async function GET(req: NextRequest) {
 
     const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-    // Parallel execution of diagnostic queries with tenant isolation
+    // Parallel execution of diagnostic and tenant-isolated queries
     const [
-      dbPingResult,
+      dependencyHealth,
       telemetryEvents,
       migrationCheck,
       dataQuality,
@@ -81,16 +91,11 @@ export async function GET(req: NextRequest) {
       securityEvents,
       billingRecord,
     ] = await Promise.all([
-      // 1. PostgreSQL DB ping & latency
-      (async () => {
-        try {
-          const start = Date.now();
-          await prisma.$queryRaw`SELECT 1`;
-          return { status: 'AVAILABLE' as const, latencyMs: Date.now() - start };
-        } catch {
-          return { status: 'UNAVAILABLE' as const, latencyMs: 0 };
-        }
-      })(),
+      // 1. Centralized dependency health evaluation
+      getSystemDependencyHealth({
+        organizationId: effectiveOrgId,
+        forceFresh: forceRefresh,
+      }),
 
       // 2. Query telemetry events strictly scoped by organization (unless global operator)
       prisma.systemTelemetryEvent.findMany({
@@ -113,10 +118,10 @@ export async function GET(req: NextRequest) {
       // 3. Migration consistency
       checkMigrationConsistency(),
 
-      // 4. Data quality assessment (tenant-scoped)
+      // 4. Data quality assessment (strictly tenant-scoped)
       checkDataQuality(effectiveOrgId || undefined),
 
-      // 5. Integrations status (tenant-scoped)
+      // 5. Integrations status (strictly tenant-scoped)
       prisma.integrationConnection.findMany({
         where: orgFilter,
         select: {
@@ -128,7 +133,7 @@ export async function GET(req: NextRequest) {
         },
       }).catch(() => []),
 
-      // 6. Background sync jobs (tenant-scoped)
+      // 6. Background sync jobs (strictly tenant-scoped)
       prisma.syncJob.findMany({
         where: {
           createdAt: { gte: since },
@@ -139,7 +144,7 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
       }).catch(() => []),
 
-      // 7. AI usage records (tenant-scoped)
+      // 7. AI usage records (strictly tenant-scoped)
       prisma.aIUsageRecord.count({
         where: {
           createdAt: { gte: since },
@@ -147,10 +152,12 @@ export async function GET(req: NextRequest) {
         },
       }).catch(() => 0),
 
-      // 8. Billing webhook failures (global or tenant-related)
-      prisma.webhookEvent.count({
-        where: { status: 'FAILED', createdAt: { gte: since } },
-      }).catch(() => 0),
+      // 8. Billing webhook failures (global operator only)
+      isGlobalOperator
+        ? prisma.webhookEvent.count({
+            where: { status: 'FAILED', createdAt: { gte: since } },
+          }).catch(() => 0)
+        : Promise.resolve(0),
 
       // 9. Security audit events (strictly tenant-scoped)
       prisma.auditLog.findMany({
@@ -200,7 +207,7 @@ export async function GET(req: NextRequest) {
     const p95Ms = latencies.length ? Math.round(latencies[Math.floor(latencies.length * 0.95)]) : 0;
     const p99Ms = latencies.length ? Math.round(latencies[Math.floor(latencies.length * 0.99)]) : 0;
 
-    // Slowest routes
+    // Slowest and failing routes
     const routeDurations: Record<string, number[]> = {};
     const routeErrors: Record<string, number> = {};
     for (const e of telemetryEvents) {
@@ -227,17 +234,6 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    // AI Configuration State (Truthful distinction: CONFIGURED vs AVAILABLE vs NOT_CONFIGURED)
-    const hasGeminiKey = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY);
-    const isMockGemini = process.env.GOOGLE_GENERATIVE_AI_API_KEY === 'mock_key';
-    const geminiStatus = hasGeminiKey
-      ? isMockGemini
-        ? 'TEST/MOCK'
-        : aiUsageCount > 0
-        ? 'AVAILABLE'
-        : 'CONFIGURED'
-      : 'NOT_CONFIGURED';
-
     // Job Stats & Stale Detection
     const staleThresholdTime = new Date(Date.now() - SYSTEM_STALE_JOB_MINUTES * 60 * 1000);
     const staleJobs = syncJobs.filter((j: any) => j.status === 'RUNNING' && new Date(j.createdAt) < staleThresholdTime).length;
@@ -254,7 +250,7 @@ export async function GET(req: NextRequest) {
     const configResults = validateSystemConfig();
     const missingRequiredConfigs = configResults.filter((c: any) => c.required && c.status === 'MISSING').length;
 
-    // Deterministic System Alerts Engine with named thresholds
+    // Deterministic System Alerts Engine
     const alerts: Array<{
       id: string;
       severity: 'CRITICAL' | 'WARNING';
@@ -264,12 +260,14 @@ export async function GET(req: NextRequest) {
       status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
     }> = [];
 
-    if (dbPingResult.status !== 'AVAILABLE') {
+    const dbHealth = dependencyHealth.dependencies.database;
+
+    if (dbHealth.status !== 'AVAILABLE') {
       alerts.push({
         id: 'alert-db-unreachable',
         severity: 'CRITICAL',
         type: 'DATABASE_UNAVAILABLE',
-        message: 'PostgreSQL database unreachable or disconnected.',
+        message: `PostgreSQL database issue: ${dbHealth.evidence}`,
         createdAt: new Date().toISOString(),
         status: 'OPEN',
       });
@@ -342,12 +340,17 @@ export async function GET(req: NextRequest) {
     }
 
     // Determine Overall Status deterministically
-    const overallStatus =
-      dbPingResult.status === 'AVAILABLE' && migrationCheck.status === 'SYNCHRONIZED' && errors5xx === 0 && missingRequiredConfigs === 0
-        ? 'HEALTHY'
-        : dbPingResult.status === 'AVAILABLE'
-        ? 'DEGRADED'
-        : 'UNAVAILABLE';
+    let overallStatus: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' = dependencyHealth.overallStatus;
+    if (dbHealth.status !== 'AVAILABLE') {
+      overallStatus = 'UNAVAILABLE';
+    } else if (
+      migrationCheck.status !== 'SYNCHRONIZED' ||
+      errors5xx > 0 ||
+      missingRequiredConfigs > 0 ||
+      dependencyHealth.overallStatus === 'DEGRADED'
+    ) {
+      overallStatus = 'DEGRADED';
+    }
 
     const deployment = getDeploymentMetadata();
     const telemetryPipeline = getTelemetryPipelineHealth();
@@ -363,8 +366,8 @@ export async function GET(req: NextRequest) {
       },
       deployment,
       database: {
-        status: dbPingResult.status,
-        latencyMs: dbPingResult.latencyMs,
+        status: dbHealth.status,
+        latencyMs: dbHealth.latencyMs,
         writeGate: isDatabaseWritesAllowed() ? 'WRITES_ENABLED' : 'READ_ONLY_SAFEGUARD',
         databaseId: process.env.LEADMACHINE_DATABASE_ID || 'unspecified',
         migrations: migrationCheck,
@@ -373,6 +376,7 @@ export async function GET(req: NextRequest) {
         observedRequests,
         totalRequests,
         calculationMode: 'SAMPLED' as const,
+        samplingNote: 'Calculated from sampled telemetry and high-water aggregate counters',
         errors4xx,
         errors5xx,
         slowRequests,
@@ -380,11 +384,14 @@ export async function GET(req: NextRequest) {
         p50Ms,
         p95Ms,
         p99Ms,
+        observedP50Ms: p50Ms,
+        observedP95Ms: p95Ms,
+        observedP99Ms: p99Ms,
         topSlowRoutes,
         topFailingRoutes,
       },
       ai: {
-        status: geminiStatus,
+        status: dependencyHealth.dependencies.ai.status,
         provider: 'gemini',
         model: 'gemini-1.5-pro',
         requests: aiUsageCount,
@@ -397,7 +404,7 @@ export async function GET(req: NextRequest) {
       },
       jobs: jobStats,
       billing: {
-        status: process.env.STRIPE_SECRET_KEY ? 'CONFIGURED' : 'NOT_CONFIGURED',
+        status: dependencyHealth.dependencies.billing.status,
         plan: billingRecord?.plan?.name || 'Standard',
         subscriptionStatus: billingRecord?.subscriptionStatus || 'TRIAL',
         failedWebhooks,
@@ -409,12 +416,68 @@ export async function GET(req: NextRequest) {
       configuration: configResults,
       alerts,
       observabilityPipeline: telemetryPipeline,
+
+      // Explicit structure separating global infrastructure from organization telemetry
+      infrastructure: {
+        runtime: deployment.runtimeVersion,
+        processUptime: Math.floor(process.uptime()),
+        deployment,
+        database: {
+          status: dbHealth.status,
+          latencyMs: dbHealth.latencyMs,
+          writeGate: isDatabaseWritesAllowed() ? 'WRITES_ENABLED' : 'READ_ONLY_SAFEGUARD',
+          databaseId: process.env.LEADMACHINE_DATABASE_ID || 'unspecified',
+          migrations: migrationCheck,
+        },
+        dependencies: dependencyHealth.dependencies,
+      },
+      tenant: {
+        organizationId: effectiveOrgId,
+        isolated: !isGlobalOperator,
+        telemetry: {
+          observedRequests,
+          totalRequests,
+          calculationMode: 'SAMPLED' as const,
+          errors4xx,
+          errors5xx,
+          slowRequests,
+          avgLatencyMs,
+          observedP50Ms: p50Ms,
+          observedP95Ms: p95Ms,
+          observedP99Ms: p99Ms,
+          topSlowRoutes,
+          topFailingRoutes,
+        },
+        integrations: {
+          connections,
+          total: connections.length,
+          active: connections.filter((c: any) => c.status === 'ACTIVE').length,
+          failing: connections.filter((c: any) => c.status === 'FAILING').length,
+        },
+        jobs: jobStats,
+        ai: {
+          status: dependencyHealth.dependencies.ai.status,
+          provider: 'gemini',
+          model: 'gemini-1.5-pro',
+          requests: aiUsageCount,
+        },
+        billing: {
+          status: dependencyHealth.dependencies.billing.status,
+          plan: billingRecord?.plan?.name || 'Standard',
+          subscriptionStatus: billingRecord?.subscriptionStatus || 'TRIAL',
+        },
+        security: {
+          recentEvents: securityEvents,
+        },
+        dataQuality,
+      },
     };
 
     tenantSnapshotCache.set(cacheKey, {
       data: snapshotData,
       cachedAt: Date.now(),
       timeRange,
+      organizationId: effectiveOrgId,
     });
 
     return NextResponse.json(snapshotData, { status: 200 });
