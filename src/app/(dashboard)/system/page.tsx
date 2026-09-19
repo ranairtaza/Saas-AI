@@ -55,6 +55,8 @@ interface SnapshotData {
   };
   performance: {
     totalRequests: number;
+    observedRequests?: number;
+    calculationMode?: "EXACT" | "SAMPLED" | "INSUFFICIENT_DATA";
     errors4xx: number;
     errors5xx: number;
     slowRequests: number;
@@ -66,7 +68,7 @@ interface SnapshotData {
     topFailingRoutes: Array<{ route: string; count: number }>;
   };
   ai: {
-    status: "LIVE" | "TEST/MOCK" | "NOT_CONFIGURED" | "UNAVAILABLE";
+    status: "AVAILABLE" | "CONFIGURED" | "DEGRADED" | "UNAVAILABLE" | "NOT_CONFIGURED" | "LIVE" | "TEST/MOCK";
     provider: string;
     model: string;
     requests: number;
@@ -462,7 +464,7 @@ export default function SystemCommandCenterPage() {
           </div>
           <div>
             <div className="flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full ${data.database.status === "HEALTHY" ? "bg-emerald-500" : "bg-rose-500"}`} />
+              <span className={`w-2 h-2 rounded-full ${data.database.status === "HEALTHY" || data.database.status === "AVAILABLE" ? "bg-emerald-500" : "bg-rose-500"}`} />
               <span className="text-sm font-bold text-foreground">{data.database.status}</span>
             </div>
             <div className="text-[10px] text-muted-foreground mt-0.5">{data.database.latencyMs}ms ping</div>
@@ -472,26 +474,32 @@ export default function SystemCommandCenterPage() {
         {/* API Latency */}
         <div className="p-3.5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">API p95</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Observed p95</span>
             <Zap className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="text-sm font-bold text-foreground">{data.performance.p95Ms}ms</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">p99: {data.performance.p99Ms}ms</div>
+            <div className="text-sm font-bold text-foreground">{data.performance.p95Ms > 0 ? `${data.performance.p95Ms}ms` : "—"}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">Obs p99: {data.performance.p99Ms > 0 ? `${data.performance.p99Ms}ms` : "—"}</div>
           </div>
         </div>
 
         {/* AI Gemini */}
         <div className="p-3.5 rounded-xl border border-border bg-card shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Gemini</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider">Gemini AI</span>
             <Cpu className="w-3.5 h-3.5" />
           </div>
           <div>
             <div className="flex items-center gap-1">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  data.ai.status === "LIVE" ? "bg-emerald-500" : data.ai.status === "TEST/MOCK" ? "bg-amber-500" : "bg-muted"
+                  data.ai.status === "AVAILABLE" || data.ai.status === "LIVE"
+                    ? "bg-emerald-500"
+                    : data.ai.status === "CONFIGURED"
+                    ? "bg-sky-500"
+                    : data.ai.status === "DEGRADED" || data.ai.status === "TEST/MOCK"
+                    ? "bg-amber-500"
+                    : "bg-muted-foreground/30"
                 }`}
               />
               <span className="text-sm font-bold text-foreground">{data.ai.status}</span>
@@ -582,7 +590,11 @@ export default function SystemCommandCenterPage() {
           {/* Performance Overview KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="text-xs text-muted-foreground font-medium">Observed Requests (Sampled, {timeRange})</div>
+              <div className="text-xs text-muted-foreground font-medium">
+                {data.performance.calculationMode === "EXACT"
+                  ? `Exact Requests (${timeRange})`
+                  : `Observed Requests (Sampled, ${timeRange})`}
+              </div>
               <div className="text-2xl font-extrabold text-foreground mt-1">
                 {data.performance.totalRequests > 0 ? data.performance.totalRequests : "—"}
               </div>

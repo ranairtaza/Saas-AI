@@ -42,12 +42,13 @@ export interface RecordTelemetryInput {
   service?: string;
   message?: string | null;
   metadata?: unknown;
+  timestamp?: number | Date | null;
 }
 
 const SLOW_REQUEST_MS = SYSTEM_SLOW_REQUEST_MS;
 const SAMPLE_RATE = SYSTEM_TELEMETRY_SAMPLE_RATE;
 
-// In-memory counters for accurate request volume tracking (not just sampled count)
+// In-memory counters for process-lifetime tracking
 interface AggregateCounters {
   exactTotalRequests: number;
   successfulRequests: number;
@@ -65,6 +66,158 @@ const globalCounters: AggregateCounters = {
 };
 
 const orgCounters: Map<string, AggregateCounters> = new Map();
+
+export interface SystemMetricBucket {
+  organizationId: string | null;
+  bucketStart: number; // epoch ms
+  bucketSize: number; // e.g. 60000 ms (1 minute)
+  requests: number;
+  success: number;
+  errors4xx: number;
+  errors5xx: number;
+  slowRequests: number;
+}
+
+// Bounded in-memory time-bucket storage (pruned to 30 days)
+const metricBuckets: Map<string, SystemMetricBucket> = new Map();
+const BUCKET_SIZE_MS = 60 * 1000; // 1-minute buckets
+const MAX_BUCKET_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function getBucketKey(organizationId: string | null, bucketStart: number): string {
+  return `${organizationId || 'global'}:${bucketStart}`;
+}
+
+function pruneOldBuckets(): void {
+  const cutoff = Date.now() - MAX_BUCKET_RETENTION_MS;
+  for (const [key, bucket] of metricBuckets.entries()) {
+    if (bucket.bucketStart < cutoff) {
+      metricBuckets.delete(key);
+    }
+  }
+}
+
+export function recordMetricToBucket(
+  event: RecordTelemetryInput,
+  timestampMs: number = Date.now()
+): void {
+  const bucketStart = Math.floor(timestampMs / BUCKET_SIZE_MS) * BUCKET_SIZE_MS;
+  const isSuccess =
+    event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 200 && event.statusCode < 400;
+  const is4xx =
+    event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 400 && event.statusCode < 500;
+  const is5xx =
+    event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 500;
+  const isSlow =
+    event.durationMs !== undefined && event.durationMs !== null && event.durationMs >= SLOW_REQUEST_MS;
+
+  // 1. Update tenant bucket if organizationId exists
+  if (event.organizationId) {
+    const tenantKey = getBucketKey(event.organizationId, bucketStart);
+    let bucket = metricBuckets.get(tenantKey);
+    if (!bucket) {
+      bucket = {
+        organizationId: event.organizationId,
+        bucketStart,
+        bucketSize: BUCKET_SIZE_MS,
+        requests: 0,
+        success: 0,
+        errors4xx: 0,
+        errors5xx: 0,
+        slowRequests: 0,
+      };
+      metricBuckets.set(tenantKey, bucket);
+    }
+    bucket.requests++;
+    if (isSuccess) bucket.success++;
+    if (is4xx) bucket.errors4xx++;
+    if (is5xx) bucket.errors5xx++;
+    if (isSlow) bucket.slowRequests++;
+  }
+
+  // 2. Always update global bucket
+  const globalKey = getBucketKey(null, bucketStart);
+  let globalBucket = metricBuckets.get(globalKey);
+  if (!globalBucket) {
+    globalBucket = {
+      organizationId: null,
+      bucketStart,
+      bucketSize: BUCKET_SIZE_MS,
+      requests: 0,
+      success: 0,
+      errors4xx: 0,
+      errors5xx: 0,
+      slowRequests: 0,
+    };
+    metricBuckets.set(globalKey, globalBucket);
+  }
+  globalBucket.requests++;
+  if (isSuccess) globalBucket.success++;
+  if (is4xx) globalBucket.errors4xx++;
+  if (is5xx) globalBucket.errors5xx++;
+  if (isSlow) globalBucket.slowRequests++;
+
+  // Periodically prune old buckets
+  if (metricBuckets.size > 5000) {
+    pruneOldBuckets();
+  }
+}
+
+export function getTimeWindowAggregateCounters(
+  sinceMs: number,
+  untilMs: number = Date.now(),
+  organizationId?: string | null
+): {
+  exactTotalRequests: number;
+  successfulRequests: number;
+  errors4xx: number;
+  errors5xx: number;
+  slowRequests: number;
+  calculationMode: 'EXACT';
+  isAuthoritative: boolean;
+  timeRangeMs: number;
+  bucketCount: number;
+} {
+  let exactTotalRequests = 0;
+  let successfulRequests = 0;
+  let errors4xx = 0;
+  let errors5xx = 0;
+  let slowRequests = 0;
+  let bucketCount = 0;
+
+  for (const bucket of metricBuckets.values()) {
+    // Organization scoping:
+    // If organizationId is provided, only include buckets for that organization.
+    // If organizationId is not provided (global operator), include global buckets (organizationId === null).
+    const matchesOrg = organizationId
+      ? bucket.organizationId === organizationId
+      : bucket.organizationId === null;
+
+    if (matchesOrg && bucket.bucketStart >= sinceMs && bucket.bucketStart <= untilMs) {
+      exactTotalRequests += bucket.requests;
+      successfulRequests += bucket.success;
+      errors4xx += bucket.errors4xx;
+      errors5xx += bucket.errors5xx;
+      slowRequests += bucket.slowRequests;
+      bucketCount++;
+    }
+  }
+
+  return {
+    exactTotalRequests,
+    successfulRequests,
+    errors4xx,
+    errors5xx,
+    slowRequests,
+    calculationMode: 'EXACT',
+    isAuthoritative: true,
+    timeRangeMs: untilMs - sinceMs,
+    bucketCount,
+  };
+}
+
+export function clearMetricBuckets(): void {
+  metricBuckets.clear();
+}
 
 export function getAggregateCounters(organizationId?: string | null): AggregateCounters & { calculationMode: 'EXACT_COUNTERS' } {
   if (organizationId && orgCounters.has(organizationId)) {
@@ -113,6 +266,7 @@ async function flushBatch(): Promise<void> {
       service: item.service || 'api',
       message: item.message || null,
       metadata: sanitizeMetadata(item.metadata),
+      ...(item.timestamp ? { createdAt: new Date(item.timestamp) } : {}),
     }));
 
     await prisma.systemTelemetryEvent.createMany({
@@ -133,6 +287,10 @@ async function flushBatch(): Promise<void> {
 
 export function recordTelemetry(event: RecordTelemetryInput): void {
   stats.totalRecorded++;
+
+  // Record into time-bucketed metric store
+  const eventTimeMs = event.timestamp ? new Date(event.timestamp).getTime() : Date.now();
+  recordMetricToBucket(event, eventTimeMs);
 
   // Update real-time aggregate counters for every request
   globalCounters.exactTotalRequests++;

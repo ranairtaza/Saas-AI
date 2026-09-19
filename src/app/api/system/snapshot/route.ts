@@ -6,7 +6,11 @@ import { validateSystemConfig } from '@/lib/observability/config-validator';
 import { checkMigrationConsistency } from '@/lib/observability/migration-checker';
 import { checkDataQuality } from '@/lib/observability/data-quality';
 import { getDeploymentMetadata } from '@/lib/observability/deployment';
-import { getTelemetryPipelineHealth, getAggregateCounters } from '@/lib/observability/telemetry';
+import {
+  getTelemetryPipelineHealth,
+  getAggregateCounters,
+  getTimeWindowAggregateCounters,
+} from '@/lib/observability/telemetry';
 import { isSystemOperator } from '@/permissions/definitions';
 import { getSystemDependencyHealth } from '@/lib/observability/dependency-health';
 import {
@@ -188,24 +192,42 @@ export async function GET(req: NextRequest) {
         : null,
     ]);
 
-    // Compute Performance Metrics with truthful semantics
+    // Compute Performance Metrics with time-bucketed aggregation and truthful semantics
     const observedRequests = telemetryEvents.length;
-    const aggregateCounters = getAggregateCounters(effectiveOrgId);
-    const totalRequests = Math.max(observedRequests, aggregateCounters.exactTotalRequests);
+    const windowCounters = getTimeWindowAggregateCounters(since.getTime(), Date.now(), effectiveOrgId);
 
-    const errors4xx = telemetryEvents.filter((e: any) => e.statusCode && e.statusCode >= 400 && e.statusCode < 500).length;
-    const errors5xx = telemetryEvents.filter((e: any) => e.statusCode && e.statusCode >= 500).length;
-    const slowRequests = telemetryEvents.filter((e: any) => e.durationMs && e.durationMs >= SYSTEM_SLOW_REQUEST_MS).length;
+    // Determine calculation mode and exact request totals
+    let totalRequests = windowCounters.exactTotalRequests;
+    let calculationMode: 'EXACT' | 'SAMPLED' | 'INSUFFICIENT_DATA' = 'EXACT';
+
+    if (totalRequests === 0 && observedRequests === 0) {
+      calculationMode = 'INSUFFICIENT_DATA';
+    } else if (observedRequests > totalRequests) {
+      // If sampled telemetry stored in DB exceeds in-memory bucket counter (e.g. process restart),
+      // reflect observed telemetry and clearly label calculationMode as SAMPLED
+      totalRequests = observedRequests;
+      calculationMode = 'SAMPLED';
+    }
+
+    const observed4xx = telemetryEvents.filter((e: any) => e.statusCode && e.statusCode >= 400 && e.statusCode < 500).length;
+    const observed5xx = telemetryEvents.filter((e: any) => e.statusCode && e.statusCode >= 500).length;
+    const observedSlow = telemetryEvents.filter((e: any) => e.durationMs && e.durationMs >= SYSTEM_SLOW_REQUEST_MS).length;
+
+    // Use exact aggregate error counters if exact mode is available, otherwise observed sampled count
+    const errors4xx = calculationMode === 'EXACT' ? windowCounters.errors4xx : observed4xx;
+    const errors5xx = calculationMode === 'EXACT' ? windowCounters.errors5xx : observed5xx;
+    const slowRequests = calculationMode === 'EXACT' ? windowCounters.slowRequests : observedSlow;
 
     const latencies = telemetryEvents
       .map((e: any) => e.durationMs)
       .filter((l: any): l is number => typeof l === 'number')
       .sort((a: number, b: number) => a - b);
 
-    const avgLatencyMs = latencies.length ? Math.round(latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length) : 0;
-    const p50Ms = latencies.length ? Math.round(latencies[Math.floor(latencies.length * 0.5)]) : 0;
-    const p95Ms = latencies.length ? Math.round(latencies[Math.floor(latencies.length * 0.95)]) : 0;
-    const p99Ms = latencies.length ? Math.round(latencies[Math.floor(latencies.length * 0.99)]) : 0;
+    const hasLatencyData = latencies.length > 0;
+    const avgLatencyMs = hasLatencyData ? Math.round(latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length) : null;
+    const p50Ms = hasLatencyData ? Math.round(latencies[Math.floor(latencies.length * 0.5)]) : null;
+    const p95Ms = hasLatencyData ? Math.round(latencies[Math.floor(latencies.length * 0.95)]) : null;
+    const p99Ms = hasLatencyData ? Math.round(latencies[Math.floor(latencies.length * 0.99)]) : null;
 
     // Slowest and failing routes
     const routeDurations: Record<string, number[]> = {};
@@ -375,18 +397,24 @@ export async function GET(req: NextRequest) {
       performance: {
         observedRequests,
         totalRequests,
-        calculationMode: 'SAMPLED' as const,
-        samplingNote: 'Calculated from sampled telemetry and high-water aggregate counters',
+        // Deterministic telemetry attribution: calculationMode: 'SAMPLED' | 'EXACT' | 'INSUFFICIENT_DATA'
+        calculationMode,
+        samplingNote:
+          calculationMode === 'EXACT'
+            ? 'Exact request volume aggregated from time-bucketed metric counters'
+            : 'Calculated from sampled telemetry and high-water aggregate counters',
         errors4xx,
         errors5xx,
         slowRequests,
-        avgLatencyMs,
-        p50Ms,
-        p95Ms,
-        p99Ms,
+        avgLatencyMs: avgLatencyMs ?? 0,
+        p50Ms: p50Ms ?? 0,
+        p95Ms: p95Ms ?? 0,
+        p99Ms: p99Ms ?? 0,
         observedP50Ms: p50Ms,
         observedP95Ms: p95Ms,
         observedP99Ms: p99Ms,
+        observedAvgLatencyMs: avgLatencyMs,
+        latencyCalculationMode: hasLatencyData ? 'SAMPLED' : 'INSUFFICIENT_DATA',
         topSlowRoutes,
         topFailingRoutes,
       },
@@ -437,14 +465,16 @@ export async function GET(req: NextRequest) {
         telemetry: {
           observedRequests,
           totalRequests,
-          calculationMode: 'SAMPLED' as const,
+          calculationMode: (calculationMode === 'SAMPLED' ? ('SAMPLED' as const) : calculationMode),
           errors4xx,
           errors5xx,
           slowRequests,
-          avgLatencyMs,
+          avgLatencyMs: avgLatencyMs ?? 0,
           observedP50Ms: p50Ms,
           observedP95Ms: p95Ms,
           observedP99Ms: p99Ms,
+          observedAvgLatencyMs: avgLatencyMs,
+          latencyCalculationMode: hasLatencyData ? 'SAMPLED' : 'INSUFFICIENT_DATA',
           topSlowRoutes,
           topFailingRoutes,
         },

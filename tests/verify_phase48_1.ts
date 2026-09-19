@@ -29,9 +29,15 @@ import { NextRequest } from 'next/server';
 import prisma from '../src/lib/db';
 import { setTestUserOverride } from '../src/lib/session';
 import { GET as snapshotGET, tenantSnapshotCache } from '../src/app/api/system/snapshot/route';
+import { GET as overviewGET } from '../src/app/api/system/overview/route';
 import { GET as errorsGET } from '../src/app/api/system/errors/route';
 import { GET as readyHealthGET } from '../src/app/api/health/ready/route';
 import { GET as systemHealthGET } from '../src/app/api/system/health/route';
+import {
+  recordMetricToBucket,
+  clearMetricBuckets,
+  getTimeWindowAggregateCounters,
+} from '../src/lib/observability/telemetry';
 import {
   checkDatabaseHealth,
   checkGeminiHealth,
@@ -608,6 +614,175 @@ async function runTests() {
       assert(proxyContent.includes("'/dashboard'"), 'Must protect /dashboard routes');
       assert(proxyContent.includes('jwtVerify'), 'Must enforce cryptographically secure JWT verification');
       assert(proxyContent.includes('isProtectedPath'), 'Must check protected paths');
+    });
+
+    // ==========================================
+    // 21. Non-global user cannot override organizationId via query parameters
+    // ==========================================
+    await it('21. Non-global user cannot override organizationId via query parameters', async () => {
+      setTestUserOverride({
+        id: userAId,
+        email: 'admin-a@example.com',
+        role: 'ADMIN',
+        organizationId: orgAId,
+      });
+
+      // Attempt to force Org B data by sending ?organizationId=orgBId
+      const req = new NextRequest(`http://localhost:3000/api/system/snapshot?organizationId=${orgBId}&refresh=true`);
+      const res = await snapshotGET(req);
+      assert.strictEqual(res.status, 200);
+      const json = await res.json();
+
+      // Must be strictly scoped to Org A, ignoring query parameter
+      assert.strictEqual(json.tenant.organizationId, orgAId, 'Must ignore ?organizationId= for non-operator');
+      assert.strictEqual(json.tenant.isolated, true);
+      const routes = json.performance.topSlowRoutes.map((r: any) => r.route);
+      assert(!routes.includes('/org-b-test-route'), 'Must never return Org B routes to Org A admin');
+    });
+
+    // ==========================================
+    // 22. Time-window request totals strictly respect requested time window
+    // ==========================================
+    await it('22. Time-window request totals strictly respect requested time window', async () => {
+      clearMetricBuckets();
+      const now = Date.now();
+      const tMinus2h = now - 2.5 * 60 * 60 * 1000;
+      const tMinus30m = now - 30 * 60 * 1000;
+      const tMinus10d = now - 10 * 24 * 60 * 60 * 1000;
+
+      // Seed time-bucketed metrics for orgAId
+      recordMetricToBucket(
+        {
+          organizationId: orgAId,
+          eventType: 'REQUEST',
+          route: '/t-minus-2h',
+          statusCode: 200,
+        },
+        tMinus2h
+      );
+
+      recordMetricToBucket(
+        {
+          organizationId: orgAId,
+          eventType: 'REQUEST',
+          route: '/t-minus-30m',
+          statusCode: 200,
+        },
+        tMinus30m
+      );
+
+      recordMetricToBucket(
+        {
+          organizationId: orgAId,
+          eventType: 'REQUEST',
+          route: '/t-minus-10d',
+          statusCode: 200,
+        },
+        tMinus10d
+      );
+
+      // Also create telemetry events in DB with historical createdAt
+      await prisma.systemTelemetryEvent.createMany({
+        data: [
+          {
+            organizationId: orgAId,
+            eventType: 'REQUEST',
+            route: '/t-minus-2h',
+            statusCode: 200,
+            durationMs: 150,
+            createdAt: new Date(tMinus2h),
+          },
+          {
+            organizationId: orgAId,
+            eventType: 'REQUEST',
+            route: '/t-minus-30m',
+            statusCode: 200,
+            durationMs: 110,
+            createdAt: new Date(tMinus30m),
+          },
+          {
+            organizationId: orgAId,
+            eventType: 'REQUEST',
+            route: '/t-minus-10d',
+            statusCode: 200,
+            durationMs: 95,
+            createdAt: new Date(tMinus10d),
+          },
+        ],
+      });
+
+      // 1. Query window: 1h
+      const counters1h = getTimeWindowAggregateCounters(now - 60 * 60 * 1000, now, orgAId);
+      assert.strictEqual(counters1h.exactTotalRequests, 1, '1h window must contain exactly 1 request (t-30m)');
+
+      // 2. Query window: 7d (168h)
+      const counters7d = getTimeWindowAggregateCounters(now - 7 * 24 * 60 * 60 * 1000, now, orgAId);
+      assert.strictEqual(counters7d.exactTotalRequests, 2, '7d window must contain 2 requests (t-30m and t-2h), excluding t-10d');
+
+      // 3. Query window: 30d
+      const counters30d = getTimeWindowAggregateCounters(now - 30 * 24 * 60 * 60 * 1000, now, orgAId);
+      assert.strictEqual(counters30d.exactTotalRequests, 3, '30d window must contain all 3 requests');
+
+      // Exercise snapshot GET with 1h timeRange
+      setTestUserOverride({
+        id: userAId,
+        email: 'admin-a@example.com',
+        role: 'ADMIN',
+        organizationId: orgAId,
+      });
+
+      const res1h = await snapshotGET(new NextRequest(`http://localhost:3000/api/system/snapshot?timeRange=1h&refresh=true`));
+      assert.strictEqual(res1h.status, 200);
+      const json1h = await res1h.json();
+
+      // Check that /t-minus-2h and /t-minus-10d are excluded from 1h snapshot
+      const slowRoutes1h = json1h.performance.topSlowRoutes.map((r: any) => r.route);
+      assert(!slowRoutes1h.includes('/t-minus-2h'), 'T-2h route must not appear in 1h snapshot');
+      assert(!slowRoutes1h.includes('/t-minus-10d'), 'T-10d route must not appear in 1h snapshot');
+    });
+
+    // ==========================================
+    // 23. Performance semantics distinguish EXACT, SAMPLED, and truthful percentiles
+    // ==========================================
+    await it('23. Performance semantics distinguish EXACT, SAMPLED, and truthful percentiles', async () => {
+      setTestUserOverride({
+        id: userAId,
+        email: 'admin-a@example.com',
+        role: 'ADMIN',
+        organizationId: orgAId,
+      });
+
+      const res = await snapshotGET(new NextRequest(`http://localhost:3000/api/system/snapshot?timeRange=24h&refresh=true`));
+      assert.strictEqual(res.status, 200);
+      const json = await res.json();
+
+      assert(['EXACT', 'SAMPLED', 'INSUFFICIENT_DATA'].includes(json.performance.calculationMode));
+      assert(typeof json.performance.totalRequests === 'number');
+      assert(typeof json.performance.observedRequests === 'number');
+      assert(json.performance.observedP95Ms !== undefined, 'Must provide observedP95Ms');
+      assert(json.performance.observedP99Ms !== undefined, 'Must provide observedP99Ms');
+      assert(['SAMPLED', 'INSUFFICIENT_DATA'].includes(json.performance.latencyCalculationMode));
+    });
+
+    // ==========================================
+    // 24. Overview endpoint delegates to snapshot with identical data structure
+    // ==========================================
+    await it('24. /api/system/overview delegates to /api/system/snapshot with identical data structure', async () => {
+      setTestUserOverride({
+        id: userAId,
+        email: 'admin-a@example.com',
+        role: 'ADMIN',
+        organizationId: orgAId,
+      });
+
+      const reqOverview = new NextRequest(`http://localhost:3000/api/system/overview?timeRange=24h&refresh=true`);
+      const resOverview = await overviewGET(reqOverview);
+      assert.strictEqual(resOverview.status, 200);
+      const jsonOverview = await resOverview.json();
+
+      assert(jsonOverview.infrastructure !== undefined, 'Overview must provide infrastructure scope');
+      assert(jsonOverview.tenant !== undefined, 'Overview must provide tenant scope');
+      assert.strictEqual(jsonOverview.tenant.organizationId, orgAId, 'Overview must be tenant isolated');
     });
 
   } finally {
