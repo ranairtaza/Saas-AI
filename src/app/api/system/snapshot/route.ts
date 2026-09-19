@@ -256,6 +256,25 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
+    // Executive Performance Metrics
+    const execDashboardEvents = telemetryEvents.filter(
+      (e: any) => e.route === '/api/executive/dashboard'
+    );
+    const execLatencies = execDashboardEvents
+      .map((e: any) => e.durationMs)
+      .filter((l: any): l is number => typeof l === 'number')
+      .sort((a: number, b: number) => a - b);
+    const hasExecLatencyData = execLatencies.length > 0;
+    const execP50Ms = hasExecLatencyData ? Math.round(execLatencies[Math.floor(execLatencies.length * 0.5)]) : null;
+    const execP95Ms = hasExecLatencyData ? Math.round(execLatencies[Math.floor(execLatencies.length * 0.95)]) : null;
+    const execSlowRequests = execDashboardEvents.filter(
+      (e: any) => e.durationMs && e.durationMs >= SYSTEM_SLOW_REQUEST_MS
+    ).length;
+    const execCalculationMode: 'EXACT' | 'SAMPLED' | 'INSUFFICIENT_DATA' =
+      execDashboardEvents.length === 0
+        ? 'INSUFFICIENT_DATA'
+        : (calculationMode === 'EXACT' ? 'EXACT' : 'SAMPLED');
+
     // Job Stats & Stale Detection
     const staleThresholdTime = new Date(Date.now() - SYSTEM_STALE_JOB_MINUTES * 60 * 1000);
     const staleJobs = syncJobs.filter((j: any) => j.status === 'RUNNING' && new Date(j.createdAt) < staleThresholdTime).length;
@@ -477,6 +496,13 @@ export async function GET(req: NextRequest) {
           latencyCalculationMode: hasLatencyData ? 'SAMPLED' : 'INSUFFICIENT_DATA',
           topSlowRoutes,
           topFailingRoutes,
+          executivePerformance: {
+            requests: execDashboardEvents.length,
+            observedP50Ms: execP50Ms,
+            observedP95Ms: execP95Ms,
+            slowRequests: execSlowRequests,
+            calculationMode: execCalculationMode,
+          },
         },
         integrations: {
           connections,

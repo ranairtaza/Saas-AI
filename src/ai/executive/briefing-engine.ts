@@ -271,9 +271,10 @@ CRITICAL INSTRUCTIONS:
     recommendations: any[];
     health: any;
     observations: any;
-    // Phase 33: optional cross-phase data for enriched briefings
+    // Phase 33 & 49: optional cross-phase data for enriched briefings
     decisions?: any[];
     learningSignals?: any[];
+    recentLearningSignals?: any[];
     forecasts?: any[];
     actionPlans?: any[];
     previousBriefing?: any;
@@ -344,9 +345,10 @@ CRITICAL INSTRUCTIONS:
       }
     }
 
-    // Phase 33: Incorporate learning signals with material variance
-    if (params.learningSignals && params.learningSignals.length > 0) {
-      const negativeSignals = params.learningSignals.filter(
+    // Phase 33 & 49: Incorporate learning signals with material variance (supports both property names canonicalized)
+    const effectiveSignals = params.recentLearningSignals ?? params.learningSignals ?? [];
+    if (effectiveSignals.length > 0) {
+      const negativeSignals = effectiveSignals.filter(
         (s: any) => s.varianceStatus === 'NEGATIVE_VARIANCE' || s.varianceStatus === 'SIGNIFICANT_NEGATIVE'
       );
       if (negativeSignals.length > 0) {

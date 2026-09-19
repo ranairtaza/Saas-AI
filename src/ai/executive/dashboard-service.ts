@@ -1,9 +1,15 @@
 /**
- * Phase 47: Executive Dashboard Aggregation Service
+ * Phase 49: Executive Dashboard Aggregation & Read-Model Service
  *
- * Provides a unified, single-query aggregation read model for the Executive Command Center.
- * Replaces multiple uncoordinated client API requests with a single cached/parallelized loader.
- * Guarantees zero side-effect writes during GET operations.
+ * Implements a strict Read-Model boundary for the Executive Command Center:
+ * 1. Fast Executive Snapshot (sub-50ms read model for first-screen hero, health, opportunities, risks, attention)
+ * 2. Deep Executive Intelligence (outcomes, recommendations, events, forecasts, decisions, action plans)
+ * 3. Unified or Staged progressive loading (mode: 'snapshot' | 'deep' | 'full')
+ * 4. Production-safe distributed caching via Upstash Redis with bounded in-memory fallback
+ * 5. Explicit freshness metadata (generatedAt, sourceDataThrough, freshness, calculationStatus)
+ * 6. Focused Prisma selects (eliminating large JSON snapshots and payloads)
+ * 7. Clean canonical property alignment: operatingState.recentLearningSignals
+ * 8. Zero GET side-effects, zero synchronous Gemini calls, zero external provider calls
  */
 
 import { prisma } from '../../lib/db';
@@ -12,8 +18,53 @@ import { ExecutiveValueLayer } from './executive-value-layer';
 import { ExecutiveBriefingEngine } from './briefing-engine';
 import { BusinessHealthEvaluator } from './health-evaluator';
 import { ExecutiveObservationEngine } from './observation-engine';
+import { Redis } from '@upstash/redis';
+import { recordTelemetry } from '../../lib/observability/telemetry';
+
+export interface ExecutiveSnapshotReadModel {
+  health: {
+    overallScore: number | string;
+    status: string;
+    breakdown?: any;
+  };
+  executiveSummary: string;
+  topOpportunity: {
+    title: string;
+    financialImpact?: number | null;
+    domain?: string;
+  } | null;
+  topRisk: {
+    title: string;
+    severity?: string;
+    domain?: string;
+  } | null;
+  topAttention: any | null;
+  topPendingDecision: any | null;
+  topPendingAction: any | null;
+  pendingDecisionsCount: number;
+  pendingActionsCount: number;
+  syncStatus: Array<{
+    provider: string;
+    status: string;
+    freshness: string;
+    lastSuccessfulSyncAt: Date | string | null;
+  }>;
+  evidenceState: {
+    overallEvidenceSufficiency: 'SUFFICIENT' | 'PARTIAL' | 'INSUFFICIENT';
+    telemetryMeasured: boolean;
+    confidence: string;
+  };
+  metadata: {
+    generatedAt: string;
+    sourceDataThrough: string | null;
+    freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE';
+    calculationStatus: 'READY' | 'COMPUTING' | 'DEGRADED' | 'EMPTY';
+    cacheHit: boolean;
+  };
+}
 
 export interface ExecutiveDashboardReadModel {
+  snapshot?: ExecutiveSnapshotReadModel;
   operatingState: any;
   valueSynthesis: any;
   briefing: any | null;
@@ -21,69 +72,354 @@ export interface ExecutiveDashboardReadModel {
   recommendations: any[];
   events: any[];
   refreshedAt: string;
+  metadata?: {
+    generatedAt: string;
+    sourceDataThrough: string | null;
+    freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE';
+    calculationStatus: 'READY' | 'COMPUTING' | 'DEGRADED' | 'EMPTY';
+    cacheHit: boolean;
+    mode?: string;
+  };
 }
 
-interface DashboardCacheEntry {
-  data: ExecutiveDashboardReadModel;
+interface CacheEntry<T> {
+  data: T;
   cachedAt: number;
 }
 
-const dashboardCache = new Map<string, DashboardCacheEntry>();
-const DASHBOARD_CACHE_TTL_MS = 15_000; // 15-second fast read cache
+// Bounded in-process cache (max 100 entries per map)
+const snapshotCache = new Map<string, CacheEntry<ExecutiveSnapshotReadModel>>();
+const dashboardCache = new Map<string, CacheEntry<ExecutiveDashboardReadModel>>();
+const MAX_CACHE_ENTRIES = 100;
 
-export function invalidateDashboardCache(organizationId?: string): void {
+const SNAPSHOT_CACHE_TTL_MS = 30_000; // 30-second TTL for fast read snapshots
+const DASHBOARD_CACHE_TTL_MS = 15_000; // 15-second TTL for deep read models
+
+// Initialize Redis defensively
+const redisUrl = process.env.UPSTASH_REDIS_REST_URL || '';
+const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const redis =
+  redisUrl && redisToken && redisUrl.startsWith('https://') && !redisUrl.includes('...')
+    ? new Redis({ url: redisUrl, token: redisToken })
+    : null;
+
+function setBoundedLocalCache<T>(map: Map<string, CacheEntry<T>>, key: string, data: T): void {
+  if (map.size >= MAX_CACHE_ENTRIES) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey) map.delete(oldestKey);
+  }
+  map.set(key, { data, cachedAt: Date.now() });
+}
+
+export async function invalidateDashboardCache(organizationId?: string): Promise<void> {
   if (organizationId) {
+    snapshotCache.delete(organizationId);
     dashboardCache.delete(organizationId);
+    if (redis) {
+      try {
+        await Promise.all([
+          redis.del(`exec_snap:${organizationId}`),
+          redis.del(`exec_dash:${organizationId}`),
+        ]);
+      } catch {
+        // Safe degrade if Redis is unavailable
+      }
+    }
   } else {
+    snapshotCache.clear();
     dashboardCache.clear();
   }
 }
 
 export class ExecutiveDashboardService {
   /**
-   * Returns the complete, aggregated executive dashboard read model in a single call.
+   * Fast First-Screen Executive Snapshot Read Model.
+   * Serves the minimum data required for hero, health score, opportunities, risks, and attention.
+   * Latency target: <50ms.
    */
-  static async getDashboardReadModel(
+  static async getExecutiveSnapshot(
     organizationId: string,
     options?: { forceRefresh?: boolean }
-  ): Promise<ExecutiveDashboardReadModel> {
-    if (!options?.forceRefresh) {
-      const cached = dashboardCache.get(organizationId);
-      if (cached && Date.now() - cached.cachedAt < DASHBOARD_CACHE_TTL_MS) {
-        return cached.data;
+  ): Promise<ExecutiveSnapshotReadModel> {
+    const startMs = Date.now();
+
+    // 1. Check distributed Redis cache if configured
+    if (!options?.forceRefresh && redis) {
+      try {
+        const cached = await redis.get<ExecutiveSnapshotReadModel>(`exec_snap:${organizationId}`);
+        if (cached) {
+          cached.metadata = { ...cached.metadata, cacheHit: true };
+          return cached;
+        }
+      } catch {
+        // Safe degrade to in-memory on Redis failure
       }
     }
 
-    // 1. Fetch operating state (which already aggregates context, goals, decisions, forecasts)
-    const operatingState = await ExecutiveOperatingSystemService.getOperatingState(organizationId, {
-      forceRefresh: options?.forceRefresh,
-    });
+    // 2. Check local in-memory cache
+    if (!options?.forceRefresh) {
+      const cached = snapshotCache.get(organizationId);
+      if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
+        return {
+          ...cached.data,
+          metadata: { ...cached.data.metadata, cacheHit: true },
+        };
+      }
+    }
 
-    // 2. Synthesize value layer from operating state (in-memory calculation, zero DB queries)
+    // 3. Assemble lightweight snapshot data (Focused queries only)
+    const [operatingState, pendingDecision, pendingAction, pendingDecisionsCount, pendingActionsCount] =
+      await Promise.all([
+        ExecutiveOperatingSystemService.getOperatingState(organizationId, {
+          forceRefresh: options?.forceRefresh,
+        }),
+        prisma.executiveDecision.findFirst({
+          where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
+          orderBy: { priority: 'desc' },
+          select: { id: true, title: true, domain: true, priority: true, status: true },
+        }).catch(() => null),
+        prisma.pendingAction.findFirst({
+          where: { organizationId, status: 'WAITING' },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, actionName: true, actionType: true, riskLevel: true, status: true },
+        }).catch(() => null),
+        prisma.executiveDecision.count({
+          where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
+        }).catch(() => 0),
+        prisma.pendingAction.count({
+          where: { organizationId, status: 'WAITING' },
+        }).catch(() => 0),
+      ]);
+
     const valueSynthesis = ExecutiveValueLayer.synthesize(operatingState);
 
-    // 3. Parallel fetch of remaining executive entities using focused Prisma selects
+    const telemetryMetrics = operatingState.businessContext?.telemetry?.metrics;
+    const telemetryMeasured =
+      Boolean(telemetryMetrics?.revenueMTD?.value != null || telemetryMetrics?.totalLeads?.value != null);
+
+    const healthScore = valueSynthesis?.health?.overallScore ?? '—';
+    const healthStatus = valueSynthesis?.health?.status ?? (telemetryMeasured ? 'STABLE' : 'UNRATED');
+
+    const topOpportunity = valueSynthesis?.opportunities?.[0]
+      ? {
+          title: valueSynthesis.opportunities[0].title,
+          financialImpact: valueSynthesis.opportunities[0].estimatedImpactValue ?? null,
+          domain: valueSynthesis.opportunities[0].domain,
+        }
+      : null;
+
+    const topRisk = valueSynthesis?.risks?.[0]
+      ? {
+          title: valueSynthesis.risks[0].title,
+          severity: valueSynthesis.risks[0].severity,
+          domain: valueSynthesis.risks[0].domain,
+        }
+      : null;
+
+    const topAttention = valueSynthesis?.attentionItems?.[0] ?? null;
+
+    const syncStatus = operatingState.businessContext?.telemetry?.dataFreshness ?? [];
+    const sourceDataThrough = syncStatus.reduce<string | null>((latest, item) => {
+      if (!item.lastSuccessfulSyncAt) return latest;
+      const ts = new Date(item.lastSuccessfulSyncAt).toISOString();
+      return !latest || ts > latest ? ts : latest;
+    }, null);
+
+    let freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE' = 'REAL_TIME';
+    if (syncStatus.some((s) => s.freshness === 'STALE')) {
+      freshness = 'STALE';
+    } else if (syncStatus.some((s) => s.freshness === 'AGING')) {
+      freshness = 'AGING';
+    } else if (syncStatus.some((s) => s.freshness === 'FRESH')) {
+      freshness = 'FRESH';
+    }
+
+    const snapshot: ExecutiveSnapshotReadModel = {
+      health: {
+        overallScore: healthScore,
+        status: healthStatus,
+        breakdown: valueSynthesis?.health?.domains,
+      },
+      executiveSummary:
+        valueSynthesis?.briefingSummary?.overallState ?? 'Business operating within expected parameters.',
+      topOpportunity,
+      topRisk,
+      topAttention,
+      topPendingDecision: pendingDecision,
+      topPendingAction: pendingAction,
+      pendingDecisionsCount,
+      pendingActionsCount,
+      syncStatus,
+      evidenceState: {
+        overallEvidenceSufficiency: valueSynthesis?.overallEvidenceSufficiency ?? (telemetryMeasured ? 'PARTIAL' : 'INSUFFICIENT'),
+        telemetryMeasured,
+        confidence: valueSynthesis?.briefingSummary?.confidence ?? (telemetryMeasured ? 'MEDIUM' : 'UNAVAILABLE'),
+      },
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        sourceDataThrough,
+        freshness,
+        calculationStatus: telemetryMeasured ? 'READY' : 'EMPTY',
+        cacheHit: false,
+      },
+    };
+
+    // Store in local cache
+    setBoundedLocalCache(snapshotCache, organizationId, snapshot);
+
+    // Store in Redis with 30s TTL
+    if (redis) {
+      redis.set(`exec_snap:${organizationId}`, snapshot, { ex: 30 }).catch(() => {});
+    }
+
+    const elapsed = Date.now() - startMs;
+    recordTelemetry({
+      organizationId,
+      eventType: 'REQUEST',
+      severity: 'INFO',
+      route: '/api/executive/dashboard',
+      method: 'GET',
+      service: 'executive.snapshot',
+      durationMs: elapsed,
+      metadata: { cacheHit: false, durationMs: elapsed },
+    });
+
+    return snapshot;
+  }
+
+  /**
+   * Deep Executive Intelligence Read Model (Outcomes, Recommendations, Events).
+   * Loaded progressively after initial screen rendering.
+   */
+  static async getExecutiveDeepIntelligence(
+    organizationId: string,
+    options?: { forceRefresh?: boolean }
+  ) {
     const [outcomes, recommendations, events] = await Promise.all([
       prisma.executiveOutcome.findMany({
         where: { organizationId },
         orderBy: { startedAt: 'desc' },
         take: 10,
+        select: {
+          id: true,
+          targetKpiKey: true,
+          baselineValue: true,
+          finalValue: true,
+          deltaPercentage: true,
+          expectedValue: true,
+          variance: true,
+          varianceStatus: true,
+          resultStatus: true,
+          attributionLevel: true,
+          attributionRationale: true,
+          effectivenessScore: true,
+          measurementWindowDays: true,
+          evaluationDueAt: true,
+          startedAt: true,
+          status: true,
+        },
       }).catch(() => []),
 
       prisma.executiveRecommendation.findMany({
         where: { organizationId, status: 'ACTIVE' },
         orderBy: { priorityScore: 'desc' },
         take: 5,
+        select: {
+          id: true,
+          priorityLevel: true,
+          domain: true,
+          priorityScore: true,
+          status: true,
+          title: true,
+          executiveSummary: true,
+          expectedImpact: true,
+          createdAt: true,
+        },
       }).catch(() => []),
 
       prisma.executiveEvent.findMany({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
         take: 10,
+        select: {
+          id: true,
+          title: true,
+          severity: true,
+          domain: true,
+          eventType: true,
+          summary: true,
+          sourceTable: true,
+          sourceRecordId: true,
+          facts: true,
+          metadata: true,
+          createdAt: true,
+          occurredAt: true,
+        },
       }).catch(() => []),
     ]);
 
-    // 4. Synthesize executive briefing directly from the ALREADY-FETCHED businessContext (zero duplicate build)
+    return { outcomes, recommendations, events };
+  }
+
+  /**
+   * Returns the complete or staged executive dashboard read model.
+   * Supports options.mode = 'snapshot' | 'deep' | 'full'
+   */
+  static async getDashboardReadModel(
+    organizationId: string,
+    options?: { forceRefresh?: boolean; mode?: 'snapshot' | 'deep' | 'full' }
+  ): Promise<any> {
+    const mode = options?.mode || 'full';
+
+    // Staged loading: if only snapshot requested, delegate directly to fast snapshot
+    if (mode === 'snapshot') {
+      return this.getExecutiveSnapshot(organizationId, options);
+    }
+
+    // Staged loading: if only deep sections requested
+    if (mode === 'deep') {
+      const deep = await this.getExecutiveDeepIntelligence(organizationId, options);
+      return {
+        ...deep,
+        refreshedAt: new Date().toISOString(),
+      };
+    }
+
+    // Full read model (or cached composite)
+    if (!options?.forceRefresh && redis) {
+      try {
+        const cached = await redis.get<ExecutiveDashboardReadModel>(`exec_dash:${organizationId}`);
+        if (cached) {
+          if (cached.metadata) cached.metadata.cacheHit = true;
+          return cached;
+        }
+      } catch {
+        // Fallback
+      }
+    }
+
+    if (!options?.forceRefresh) {
+      const cached = dashboardCache.get(organizationId);
+      if (cached && Date.now() - cached.cachedAt < DASHBOARD_CACHE_TTL_MS) {
+        return {
+          ...cached.data,
+          metadata: { ...(cached.data.metadata as any), cacheHit: true },
+        };
+      }
+    }
+
+    // Parallel fetch: operating state, snapshot, and deep entities
+    const [operatingState, snapshot, { outcomes, recommendations, events }] = await Promise.all([
+      ExecutiveOperatingSystemService.getOperatingState(organizationId, {
+        forceRefresh: options?.forceRefresh,
+      }),
+      this.getExecutiveSnapshot(organizationId, options),
+      this.getExecutiveDeepIntelligence(organizationId, options),
+    ]);
+
+    const valueSynthesis = ExecutiveValueLayer.synthesize(operatingState);
+
+    // Synthesize executive briefing directly from operating state with CANONICAL recentLearningSignals
     let briefing: any | null = null;
     if (operatingState.businessContext) {
       try {
@@ -97,6 +433,7 @@ export class ExecutiveDashboardService {
           events as any
         );
 
+        // Pass canonical recentLearningSignals without 'as any'
         briefing = ExecutiveBriefingEngine.generateGroundedFallback({
           context: operatingState.businessContext,
           events: events as any,
@@ -106,7 +443,8 @@ export class ExecutiveDashboardService {
           decisions: operatingState.activeDecisions || [],
           forecasts: operatingState.activeForecasts || [],
           actionPlans: operatingState.actionPlans || [],
-          learningSignals: (operatingState as any).learningSignals || [],
+          learningSignals: operatingState.recentLearningSignals || [],
+          recentLearningSignals: operatingState.recentLearningSignals || [],
         });
       } catch (e) {
         console.warn('[ExecutiveDashboardService] Briefing synthesis fallback:', e);
@@ -114,6 +452,7 @@ export class ExecutiveDashboardService {
     }
 
     const result: ExecutiveDashboardReadModel = {
+      snapshot,
       operatingState,
       valueSynthesis,
       briefing,
@@ -121,12 +460,21 @@ export class ExecutiveDashboardService {
       recommendations,
       events,
       refreshedAt: new Date().toISOString(),
+      metadata: {
+        generatedAt: snapshot.metadata.generatedAt,
+        sourceDataThrough: snapshot.metadata.sourceDataThrough,
+        freshness: snapshot.metadata.freshness,
+        calculationStatus: snapshot.metadata.calculationStatus,
+        cacheHit: false,
+        mode: 'full',
+      },
     };
 
-    dashboardCache.set(organizationId, {
-      data: result,
-      cachedAt: Date.now(),
-    });
+    setBoundedLocalCache(dashboardCache, organizationId, result);
+
+    if (redis) {
+      redis.set(`exec_dash:${organizationId}`, result, { ex: 15 }).catch(() => {});
+    }
 
     return result;
   }

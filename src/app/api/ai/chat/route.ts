@@ -142,6 +142,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: finalMessage,
+      reply: finalMessage?.content || '',
       conversationId: currentConversation.id
     });
   } catch (error: any) {

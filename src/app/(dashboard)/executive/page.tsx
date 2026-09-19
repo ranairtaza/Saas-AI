@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ExecutivePageSkeleton } from "@/components/executive/ExecutiveSkeleton";
 import { SectionError } from "@/components/executive/ExecutiveShared";
 import { ExecutiveSnapshot } from "@/components/executive/ExecutiveSnapshot";
@@ -32,6 +32,7 @@ export default function ExecutivePage() {
   const { addToast } = useToast();
 
   // ── Primary data state ──────────────────────────────────────────────────
+  const [snapshot, setSnapshot] = useState<any>(null);
   const [operatingState, setOperatingState] = useState<any>(null);
   const [valueSynthesis, setValueSynthesis] = useState<any>(null);
   const [briefing, setBriefing] = useState<ExecutiveBriefing | null>(null);
@@ -61,12 +62,28 @@ export default function ExecutivePage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
 
+  const isRefreshingRef = useRef(false);
+
   // ── Data fetching ───────────────────────────────────────────────────────
   const fetchDashboardData = useCallback((forceRefresh = false) => {
-    setLoading(true);
     setError(null);
 
-    // 1. Primary Unified Aggregate: Single aggregated call containing complete executive read model
+    // Stage 1: True Progressive Loading — Fast Read Snapshot (<50ms)
+    // Instantly renders shell, executive snapshot hero, health, attention
+    fetch(`/api/executive/dashboard?mode=snapshot${forceRefresh ? '&refresh=true' : ''}`)
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((snap) => {
+        if (snap) {
+          setSnapshot(snap);
+          setLoading(false); // Drop initial shell skeleton immediately
+        }
+      })
+      .catch(() => {});
+
+    // Stage 2: Deep Intelligence Read Model (queues, decisions, forecasts, outcomes, goals)
     const url = forceRefresh ? "/api/executive/dashboard?refresh=true" : "/api/executive/dashboard";
 
     fetch(url)
@@ -81,49 +98,50 @@ export default function ExecutivePage() {
         const state = data.operatingState ?? null;
         setOperatingState(state);
         setValueSynthesis(data.valueSynthesis ?? null);
+        if (data.snapshot) setSnapshot(data.snapshot);
 
-        if (data.briefing) setBriefing(data.briefing);
-        if (data.outcomes) setOutcomes(data.outcomes);
-        if (data.recommendations) setRecommendations(data.recommendations);
-        if (data.events) setEvents(data.events);
+        // Stale state replacement semantics: no stale previous state survives
+        setBriefing(data.briefing ?? null);
+        setOutcomes(data.outcomes ?? []);
+        setRecommendations(data.recommendations ?? []);
+        setEvents(data.events ?? []);
 
         if (state) {
           // Hydrate core panels directly from primary operating state
-          if (state.businessContext) {
-            setContext(state.businessContext);
-            setGoals(state.businessContext.goals ?? []);
-            if (state.businessContext.historicalPerformance) {
-              setPerformance(state.businessContext.historicalPerformance);
-            }
-          }
-          if (state.activeDecisions) {
-            setDecisions(state.activeDecisions);
-          }
-          if (state.actionPlans) {
-            setActionPlans(state.actionPlans);
-            setActionSummary({
-              total: state.actionPlans.length,
-              proposed: state.actionPlans.filter((a: any) => a.status === "PROPOSED").length,
-              approved: state.actionPlans.filter((a: any) => a.status === "APPROVED").length,
-              executing: state.actionPlans.filter((a: any) => a.status === "EXECUTING").length,
-            });
-          }
-          if (state.pendingActions) {
-            setPendingActions(state.pendingActions);
-          }
-          if (state.activeForecasts) {
-            setForecastSummary({
-              total: state.activeForecasts.length,
-              forecasts: state.activeForecasts,
-            });
-          }
+          setContext(state.businessContext ?? null);
+          setGoals(state.businessContext?.goals ?? []);
+          setPerformance(state.businessContext?.historicalPerformance ?? null);
+          setDecisions(state.activeDecisions ?? []);
+          const plans = state.actionPlans ?? [];
+          setActionPlans(plans);
+          setActionSummary({
+            total: plans.length,
+            proposed: plans.filter((a: any) => a.status === "PROPOSED").length,
+            approved: plans.filter((a: any) => a.status === "APPROVED").length,
+            executing: plans.filter((a: any) => a.status === "EXECUTING").length,
+          });
+          setPendingActions(state.pendingActions ?? []);
+          const forecasts = state.activeForecasts ?? [];
+          setForecastSummary({
+            total: forecasts.length,
+            forecasts,
+          });
+        } else {
+          setContext(null);
+          setGoals([]);
+          setPerformance(null);
+          setDecisions([]);
+          setActionPlans([]);
+          setActionSummary({ total: 0, proposed: 0, approved: 0, executing: 0 });
+          setPendingActions([]);
+          setForecastSummary({ total: 0, forecasts: [] });
         }
 
-        // Drop global skeleton immediately with all data loaded
+        // Drop global skeleton with all data loaded
         setLoading(false);
       })
       .catch((e: any) => {
-        console.error("[Dashboard] Primary load failed:", e);
+        console.error("[Dashboard] Load failed:", e);
         setError(e.message || "Failed to load executive dashboard data");
         setLoading(false);
       });
@@ -131,14 +149,20 @@ export default function ExecutivePage() {
 
   // Selective refresh: pending actions only (for the human gate queue)
   const refreshPendingActions = useCallback(async () => {
+    if (isRefreshingRef.current) return;
+    if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+    isRefreshingRef.current = true;
     try {
       const res = await fetch("/api/ai/actions?status=WAITING");
       if (res.ok) {
-        const { data } = await res.json();
-        setPendingActions(data ?? []);
+        const resJson = await res.json();
+        const actions = resJson.actions ?? resJson.data ?? [];
+        setPendingActions(actions);
       }
     } catch {
       // silent — non-critical background refresh
+    } finally {
+      isRefreshingRef.current = false;
     }
   }, []);
 
@@ -346,21 +370,23 @@ export default function ExecutivePage() {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
     const userMessage = { role: "user", content: chatInput };
-    setMessages((prev) => [...prev, userMessage]);
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
     setChatInput("");
     setChatLoading(true);
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage.content, conversationId }),
+        body: JSON.stringify({ messages: nextMessages, conversationId }),
       });
       if (res.ok) {
         const data = await res.json();
-        setConversationId(data.conversationId);
+        if (data.conversationId) setConversationId(data.conversationId);
+        const assistantText = data.message?.content ?? data.reply ?? "Analysis completed.";
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", content: data.reply ?? "Analysis completed." },
+          { role: "assistant", content: assistantText },
         ]);
       } else {
         setMessages((prev) => [
@@ -444,6 +470,7 @@ export default function ExecutivePage() {
           Executive Snapshot — health, summary, top opportunity/risk/forecast
           ══════════════════════════════════════════════════════════════════ */}
       <ExecutiveSnapshot
+        snapshot={snapshot}
         operatingState={operatingState}
         valueSynthesis={valueSynthesis}
         briefing={briefing}

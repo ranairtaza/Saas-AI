@@ -51,6 +51,13 @@ export class ExecutiveOperatingSystemService {
       prisma.executiveGovernancePolicy.findFirst({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
+        select: {
+          policyVersion: true,
+          riskTolerance: true,
+          maxFinancialExposure: true,
+          restrictedDomains: true,
+          restrictedActions: true,
+        },
       }).catch(() => null),
       prisma.executiveDecision.findMany({
         where: {
@@ -59,16 +66,47 @@ export class ExecutiveOperatingSystemService {
         },
         orderBy: { priority: 'desc' },
         take: 20,
+        select: {
+          id: true,
+          title: true,
+          domain: true,
+          decisionType: true,
+          status: true,
+          priority: true,
+          governanceVerdict: true,
+          createdAt: true,
+        },
       }).catch(() => []),
       prisma.executiveLearningSignal.findMany({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
         take: 15,
+        select: {
+          id: true,
+          domain: true,
+          metric: true,
+          varianceStatus: true,
+          effectiveness: true,
+          confidence: true,
+          hypothesisResult: true,
+          createdAt: true,
+        },
       }).catch(() => []),
       prisma.executiveForecast.findMany({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
         take: 15,
+        select: {
+          id: true,
+          domain: true,
+          metric: true,
+          currentValue: true,
+          forecastValue: true,
+          forecastHorizon: true,
+          direction: true,
+          confidence: true,
+          createdAt: true,
+        },
       }).catch(() => []),
       prisma.executiveActionPlan.findMany({
         where: {
@@ -77,6 +115,18 @@ export class ExecutiveOperatingSystemService {
         },
         orderBy: { priorityScore: 'desc' },
         take: 20,
+        select: {
+          id: true,
+          actionType: true,
+          domain: true,
+          title: true,
+          status: true,
+          priority: true,
+          confidence: true,
+          expectedImpact: true,
+          governanceVerdict: true,
+          createdAt: true,
+        },
       }).catch(() => []),
       prisma.pendingAction.findMany({
         where: {
@@ -85,11 +135,27 @@ export class ExecutiveOperatingSystemService {
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
+        select: {
+          id: true,
+          actionName: true,
+          actionType: true,
+          status: true,
+          riskLevel: true,
+          createdAt: true,
+        },
       }).catch(() => []),
       prisma.executiveOutcomeAttribution.findMany({
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
         take: 20,
+        select: {
+          id: true,
+          attributionStatus: true,
+          confidence: true,
+          targetMetric: true,
+          actualDeltaValue: true,
+          createdAt: true,
+        },
       }).catch(() => []),
     ]);
 
@@ -167,6 +233,10 @@ export class ExecutiveOperatingSystemService {
       })),
     };
 
+    if (stateCache.size >= 100) {
+      const oldestKey = stateCache.keys().next().value;
+      if (oldestKey) stateCache.delete(oldestKey);
+    }
     stateCache.set(organizationId, { state: result, cachedAt: Date.now() });
     return result;
   }

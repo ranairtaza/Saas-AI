@@ -20,10 +20,13 @@ export async function GET(req: NextRequest) {
     }
 
     const forceRefresh = req.nextUrl.searchParams.get('refresh') === 'true';
+    const mode = (req.nextUrl.searchParams.get('mode') as 'snapshot' | 'deep' | 'full') || 'full';
     const dashboardData = await ExecutiveDashboardService.getDashboardReadModel(user.organizationId, {
       forceRefresh,
+      mode,
     });
 
+    const durationMs = Date.now() - startTime;
     recordTelemetry({
       organizationId: user.organizationId,
       userId: user.id,
@@ -32,7 +35,8 @@ export async function GET(req: NextRequest) {
       route: '/api/executive/dashboard',
       method: 'GET',
       statusCode: 200,
-      durationMs: Date.now() - startTime,
+      durationMs,
+      metadata: { mode, forceRefresh, durationMs },
     });
 
     return NextResponse.json(dashboardData, { status: 200 });

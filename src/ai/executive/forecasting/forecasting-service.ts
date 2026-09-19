@@ -187,7 +187,8 @@ export class ExecutiveForecastingService {
       where: { organizationId },
       include: {
         snapshots: {
-          orderBy: { timestamp: 'asc' },
+          orderBy: { timestamp: 'desc' },
+          take: 36,
         },
       },
     });
@@ -209,7 +210,8 @@ export class ExecutiveForecastingService {
 
     for (const key of canonicalKeys) {
       const metricRecord = metrics.find((m) => m.key === key);
-      const snapshots = metricRecord?.snapshots || [];
+      // Reverse to chronological ascending order required by ForecastEngine
+      const snapshots = (metricRecord?.snapshots || []).slice().reverse();
 
       // Pass through ForecastEngine
       const forecast = ForecastEngine.forecastMetric(key, snapshots);

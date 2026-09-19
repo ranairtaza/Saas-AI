@@ -5,6 +5,7 @@ import { SectionError, StatusBadge } from "@/components/executive/ExecutiveShare
 import type { ExecutiveOperatingState } from "@/ai/executive/operating-state/types";
 
 interface Props {
+  snapshot?: any;
   operatingState: ExecutiveOperatingState | null;
   valueSynthesis: any;
   briefing: any;
@@ -21,6 +22,7 @@ interface Props {
  * All values sourced from server — no recalculation in this component.
  */
 export function ExecutiveSnapshot({
+  snapshot,
   operatingState,
   valueSynthesis,
   briefing,
@@ -31,34 +33,54 @@ export function ExecutiveSnapshot({
   if (loading) return <SnapshotSkeleton />;
   if (error) return <SectionError title="Executive snapshot unavailable" message={error} />;
 
-  const healthScore = valueSynthesis?.health?.overallScore ?? (operatingState?.businessContext as any)?.health?.overallScore ?? "—";
-  const healthStatus = (valueSynthesis?.health?.status ?? "STABLE") as string;
+  const healthScore =
+    snapshot?.health?.overallScore ??
+    valueSynthesis?.health?.overallScore ??
+    (operatingState?.businessContext as any)?.health?.overallScore ??
+    "—";
+
+  const healthStatus =
+    snapshot?.health?.status ??
+    valueSynthesis?.health?.status ??
+    "UNRATED";
+
   const executiveSummary =
+    snapshot?.executiveSummary ??
     valueSynthesis?.briefingSummary?.executiveSummary ??
     briefing?.executiveSummary ??
     "Business operating within expected parameters.";
 
   const topOpportunity =
+    snapshot?.topOpportunity?.title ??
     valueSynthesis?.opportunities?.[0]?.title ??
     briefing?.opportunities?.[0] ??
     "Review active leads for high-value conversion opportunities.";
-  const topOpportunityValue = valueSynthesis?.opportunities?.[0]?.financialImpact;
+  const topOpportunityValue =
+    snapshot?.topOpportunity?.financialImpact ??
+    valueSynthesis?.opportunities?.[0]?.financialImpact;
 
   const topRisk =
+    snapshot?.topRisk?.title ??
     valueSynthesis?.risks?.[0]?.title ??
     briefing?.risks?.[0] ??
     "No material risks detected at this time.";
-  const topRiskSeverity = valueSynthesis?.risks?.[0]?.severity;
+  const topRiskSeverity =
+    snapshot?.topRisk?.severity ??
+    valueSynthesis?.risks?.[0]?.severity;
 
   const topForecast = forecastSummary?.activeForecasts?.[0];
 
-  const evidenceSufficiency = valueSynthesis?.overallEvidenceSufficiency ?? "PARTIAL";
+  const evidenceSufficiency =
+    snapshot?.evidenceState?.overallEvidenceSufficiency ??
+    valueSynthesis?.overallEvidenceSufficiency ??
+    "INSUFFICIENT";
 
   const healthColors: Record<string, string> = {
     HEALTHY: "text-emerald-400 border-emerald-500/40",
     STABLE: "text-blue-400 border-blue-500/40",
     ATTENTION_NEEDED: "text-amber-400 border-amber-500/40",
     CRITICAL_ATTENTION: "text-red-400 border-red-500/40",
+    UNRATED: "text-slate-400 border-slate-600/40",
   };
   const healthRingColor = healthColors[healthStatus] ?? "text-slate-300 border-slate-500/40";
 
@@ -157,9 +179,13 @@ export function ExecutiveSnapshot({
                   ? `${topForecast.metric} forecast to reach ${topForecast.forecastValue.toLocaleString()} (${topForecast.forecastHorizon})`
                   : "No active forecasts. Generate forecasts to see projections."}
               </p>
-              {topForecast?.confidence != null && (
+              {topForecast?.confidence != null ? (
                 <div className="text-[10px] font-bold text-violet-400 font-mono">
-                  CONFIDENCE: {topForecast.confidence}%
+                  CONFIDENCE: {typeof topForecast.confidence === 'number' ? `${topForecast.confidence}%` : topForecast.confidence}
+                </div>
+              ) : (
+                <div className="text-[10px] font-bold text-slate-400 font-mono">
+                  CONFIDENCE: UNAVAILABLE
                 </div>
               )}
             </div>

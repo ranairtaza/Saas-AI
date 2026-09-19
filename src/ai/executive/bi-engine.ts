@@ -244,14 +244,8 @@ export class BusinessIntelligenceEngine {
       };
     }
 
-    // Calculate anomalies (e.g. unassigned leads)
-    const unassignedHighPriorityLeadsCount = await prisma.lead.count({
-      where: {
-        organizationId,
-        score: { gte: 75 },
-        ownerId: null,
-      },
-    });
+    // Calculate anomalies (e.g. unassigned leads) using already-queried liveUnassignedPriorityLeads (ZERO duplicate DB count)
+    const unassignedHighPriorityLeadsCount = liveUnassignedPriorityLeads;
 
     telemetry.metrics.unassignedHighPriorityLeads.value = unassignedHighPriorityLeadsCount;
 
@@ -263,27 +257,43 @@ export class BusinessIntelligenceEngine {
       });
     }
 
-    // Determine data freshness for external providers ONLY
+    // Determine data freshness for external providers ONLY (Single bounded batch query, eliminating N+1 DB calls)
     const connections = await prisma.integrationConnection.findMany({
       where: { organizationId },
       include: { integration: true }
     });
 
-    const freshnessList = await Promise.all(connections.map(async (conn) => {
-      const latestSuccessJob = await prisma.syncJob.findFirst({
-        where: { integrationConnectionId: conn.id, status: 'COMPLETED' },
-        orderBy: { completedAt: 'desc' }
-      });
-      
-      const lastSuccessfulSyncAt = latestSuccessJob?.completedAt || null;
-      
+    const connectionIds = connections.map((c) => c.id);
+    const syncJobs = connectionIds.length > 0
+      ? await prisma.syncJob.findMany({
+          where: {
+            integrationConnectionId: { in: connectionIds },
+            status: 'COMPLETED',
+          },
+          orderBy: { completedAt: 'desc' },
+          select: {
+            integrationConnectionId: true,
+            completedAt: true,
+          },
+        })
+      : [];
+
+    const latestJobMap = new Map<string, Date>();
+    for (const job of syncJobs) {
+      if (!latestJobMap.has(job.integrationConnectionId) && job.completedAt) {
+        latestJobMap.set(job.integrationConnectionId, job.completedAt);
+      }
+    }
+
+    const freshnessList = connections.map((conn) => {
+      const lastSuccessfulSyncAt = latestJobMap.get(conn.id) || null;
       return {
         provider: conn.integration.provider,
         status: conn.status,
         freshness: calculateFreshness(lastSuccessfulSyncAt),
-        lastSuccessfulSyncAt
+        lastSuccessfulSyncAt,
       };
-    }));
+    });
 
     telemetry.dataFreshness = freshnessList;
 
