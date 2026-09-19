@@ -84,7 +84,7 @@ export default function ExecutivePage() {
       .catch(() => {});
 
     // Stage 2: Deep Intelligence Read Model (queues, decisions, forecasts, outcomes, goals)
-    const url = forceRefresh ? "/api/executive/dashboard?refresh=true" : "/api/executive/dashboard";
+    const url = forceRefresh ? "/api/executive/dashboard?mode=deep&refresh=true" : "/api/executive/dashboard?mode=deep";
 
     fetch(url)
       .then(async (res) => {

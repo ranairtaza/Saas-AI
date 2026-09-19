@@ -17,6 +17,7 @@ import { ExecutiveOperatingSystemService } from './operating-state/service';
 import { ExecutiveValueLayer } from './executive-value-layer';
 import { ExecutiveBriefingEngine } from './briefing-engine';
 import { BusinessHealthEvaluator } from './health-evaluator';
+import { BusinessIntelligenceEngine } from './bi-engine';
 import { ExecutiveObservationEngine } from './observation-engine';
 import { Redis } from '@upstash/redis';
 import { recordTelemetry } from '../../lib/observability/telemetry';
@@ -168,11 +169,9 @@ export class ExecutiveDashboardService {
     }
 
     // 3. Assemble lightweight snapshot data (Focused queries only)
-    const [operatingState, pendingDecision, pendingAction, pendingDecisionsCount, pendingActionsCount] =
+    const [telemetry, pendingDecision, pendingAction, pendingDecisionsCount, pendingActionsCount, topOpp, topRiskItem] =
       await Promise.all([
-        ExecutiveOperatingSystemService.getOperatingState(organizationId, {
-          forceRefresh: options?.forceRefresh,
-        }),
+        BusinessIntelligenceEngine.assembleTelemetry(organizationId).catch(() => null),
         prisma.executiveDecision.findFirst({
           where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
           orderBy: { priority: 'desc' },
@@ -189,44 +188,58 @@ export class ExecutiveDashboardService {
         prisma.pendingAction.count({
           where: { organizationId, status: 'WAITING' },
         }).catch(() => 0),
+        prisma.executiveForecast.findFirst({
+          where: { organizationId, direction: 'INCREASING', confidence: { not: 'INSUFFICIENT' } },
+          orderBy: { updatedAt: 'desc' },
+          select: { metric: true, domain: true, forecastValue: true, currentValue: true }
+        }).catch(() => null),
+        prisma.executiveForecast.findFirst({
+          where: { organizationId, direction: 'DECREASING', confidence: { not: 'INSUFFICIENT' } },
+          orderBy: { updatedAt: 'desc' },
+          select: { metric: true, domain: true, forecastValue: true, currentValue: true }
+        }).catch(() => null)
       ]);
 
-    const valueSynthesis = ExecutiveValueLayer.synthesize(operatingState);
+    const telemetryMeasured = Boolean(telemetry?.metrics?.revenueMTD?.value != null || telemetry?.metrics?.totalLeads?.value != null);
+    
+    // Evaluate health directly from telemetry (mocking the context shape needed by the evaluator)
+    const mockContext = { telemetry: telemetry || { metrics: {} }, goals: [] };
+    const healthResult = telemetryMeasured 
+      ? BusinessHealthEvaluator.evaluateHealth(mockContext as any)
+      : { overallScore: 75, status: 'STABLE', domains: {} as any };
 
-    const telemetryMetrics = operatingState.businessContext?.telemetry?.metrics;
-    const telemetryMeasured =
-      Boolean(telemetryMetrics?.revenueMTD?.value != null || telemetryMetrics?.totalLeads?.value != null);
+    const healthScore = telemetryMeasured ? healthResult.overallScore : '—';
+    const healthStatus = telemetryMeasured ? healthResult.status : 'UNRATED';
 
-    const healthScore = valueSynthesis?.health?.overallScore ?? '—';
-    const healthStatus = valueSynthesis?.health?.status ?? (telemetryMeasured ? 'STABLE' : 'UNRATED');
-
-    const topOpportunity = valueSynthesis?.opportunities?.[0]
+    const topOpportunity = topOpp
       ? {
-          title: valueSynthesis.opportunities[0].title,
-          financialImpact: valueSynthesis.opportunities[0].estimatedImpactValue ?? null,
-          domain: valueSynthesis.opportunities[0].domain,
+          title: `${topOpp.metric} growth trajectory`,
+          financialImpact: Math.abs(topOpp.forecastValue - topOpp.currentValue),
+          domain: topOpp.domain,
         }
       : null;
 
-    const topRisk = valueSynthesis?.risks?.[0]
+    const topRisk = topRiskItem
       ? {
-          title: valueSynthesis.risks[0].title,
-          severity: valueSynthesis.risks[0].severity,
-          domain: valueSynthesis.risks[0].domain,
+          title: `Decline in ${topRiskItem.metric}`,
+          severity: 'HIGH',
+          domain: topRiskItem.domain,
         }
       : null;
 
-    const topAttention = valueSynthesis?.attentionItems?.[0] ?? null;
+    const topAttention = null; // Lightweight snapshot leaves this null unless we want to query something specific
 
-    const syncStatus = operatingState.businessContext?.telemetry?.dataFreshness ?? [];
+    const syncStatus = telemetry?.dataFreshness ?? [];
     const sourceDataThrough = syncStatus.reduce<string | null>((latest, item) => {
       if (!item.lastSuccessfulSyncAt) return latest;
       const ts = new Date(item.lastSuccessfulSyncAt).toISOString();
       return !latest || ts > latest ? ts : latest;
     }, null);
 
-    let freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE' = 'REAL_TIME';
-    if (syncStatus.some((s) => s.freshness === 'STALE')) {
+    let freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE' = syncStatus.length > 0 ? 'REAL_TIME' : 'STALE';
+    if (syncStatus.length === 0) {
+      freshness = 'STALE'; // Cannot claim real-time if no telemetry exists
+    } else if (syncStatus.some((s) => s.freshness === 'STALE')) {
       freshness = 'STALE';
     } else if (syncStatus.some((s) => s.freshness === 'AGING')) {
       freshness = 'AGING';
@@ -238,10 +251,11 @@ export class ExecutiveDashboardService {
       health: {
         overallScore: healthScore,
         status: healthStatus,
-        breakdown: valueSynthesis?.health?.domains,
+        breakdown: telemetryMeasured ? healthResult.domains : undefined,
       },
-      executiveSummary:
-        valueSynthesis?.briefingSummary?.overallState ?? 'Business operating within expected parameters.',
+      executiveSummary: telemetryMeasured 
+        ? 'Business operating within expected parameters.' 
+        : 'Awaiting sufficient telemetry to form an operational summary.',
       topOpportunity,
       topRisk,
       topAttention,
@@ -251,9 +265,9 @@ export class ExecutiveDashboardService {
       pendingActionsCount,
       syncStatus,
       evidenceState: {
-        overallEvidenceSufficiency: valueSynthesis?.overallEvidenceSufficiency ?? (telemetryMeasured ? 'PARTIAL' : 'INSUFFICIENT'),
+        overallEvidenceSufficiency: telemetryMeasured ? 'PARTIAL' : 'INSUFFICIENT',
         telemetryMeasured,
-        confidence: valueSynthesis?.briefingSummary?.confidence ?? (telemetryMeasured ? 'MEDIUM' : 'UNAVAILABLE'),
+        confidence: telemetryMeasured ? 'MEDIUM' : 'UNAVAILABLE',
       },
       metadata: {
         generatedAt: new Date().toISOString(),
@@ -378,9 +392,50 @@ export class ExecutiveDashboardService {
 
     // Staged loading: if only deep sections requested
     if (mode === 'deep') {
-      const deep = await this.getExecutiveDeepIntelligence(organizationId, options);
+      const [operatingState, { outcomes, recommendations, events }] = await Promise.all([
+        ExecutiveOperatingSystemService.getOperatingState(organizationId, {
+          forceRefresh: options?.forceRefresh,
+        }),
+        this.getExecutiveDeepIntelligence(organizationId, options),
+      ]);
+
+      const valueSynthesis = ExecutiveValueLayer.synthesize(operatingState);
+      let briefing: any | null = null;
+      if (operatingState.businessContext) {
+        try {
+          const criticalCount = events.filter((e: any) => e.severity === 'CRITICAL').length;
+          const health = BusinessHealthEvaluator.evaluateHealth(operatingState.businessContext, {
+            activeEventCount: events.length,
+            criticalEventCount: criticalCount,
+          });
+          const observations = ExecutiveObservationEngine.synthesizeObservations(
+            operatingState.businessContext,
+            events as any
+          );
+          briefing = ExecutiveBriefingEngine.generateGroundedFallback({
+            context: operatingState.businessContext,
+            events: events as any,
+            recommendations,
+            health,
+            observations,
+            decisions: operatingState.activeDecisions || [],
+            forecasts: operatingState.activeForecasts || [],
+            actionPlans: operatingState.actionPlans || [],
+            learningSignals: operatingState.recentLearningSignals || [],
+            recentLearningSignals: operatingState.recentLearningSignals || [],
+          });
+        } catch (e) {
+          console.warn('[ExecutiveDashboardService] Briefing synthesis fallback:', e);
+        }
+      }
+
       return {
-        ...deep,
+        operatingState,
+        valueSynthesis,
+        briefing,
+        outcomes,
+        recommendations,
+        events,
         refreshedAt: new Date().toISOString(),
       };
     }

@@ -355,9 +355,21 @@ async function runPhase49Tests() {
     assert.strictEqual(forecast36.status, 'FORECASTED');
     assert(forecast36.forecastValue !== null);
 
+    const forecast100 = ForecastEngine.forecastMetric('REVENUE_MTD', history100);
+    assert.strictEqual(forecast100.status, 'FORECASTED');
+
+    // Semantic status match
+    assert.strictEqual(forecast36.status, forecast100.status, 'Semantic status must match between 36 and 100 snapshots');
+
     // Trend detection
     const trend36 = ForecastEngine.detectTrend('REVENUE_MTD', boundedTake36);
-    assert(['INCREASING', 'STRONGLY_INCREASING', 'STABLE'].includes(trend36.trend), 'Trend must be determined');
+    const trend100 = ForecastEngine.detectTrend('REVENUE_MTD', history100);
+    assert.strictEqual(trend36.trend, trend100.trend, 'Direction/trend classification must match');
+
+    // Explicitly documented tolerance (within 25% deviation since WMA weights recent data more heavily)
+    const diff = Math.abs((forecast36.forecastValue as number) - (forecast100.forecastValue as number));
+    const tolerance = (forecast100.forecastValue as number) * 0.25;
+    assert(diff <= tolerance, `Forecast numeric value must be within 25% tolerance. Diff: ${diff}, Tol: ${tolerance}`);
 
     console.log('  ✅ Forecast Correctness Gate: 0, 2, 5, 36, and 100 snapshots mathematically verified.');
   }
@@ -418,8 +430,17 @@ async function runPhase49Tests() {
   console.log('\nTest 10: Zero External Provider & Gemini Calls on Dashboard GET...');
   {
     // Verify that getDashboardReadModel does not invoke external network endpoints
-    const fullModel = await ExecutiveDashboardService.getDashboardReadModel(organizationId);
-    assert(fullModel !== null, 'Dashboard read model returned strictly from local database and deterministic logic');
+    const originalFetch = global.fetch;
+    global.fetch = async (url, options) => {
+      throw new Error(`[Zero External Call Policy Violation] Intercepted external fetch to: ${url}`);
+    };
+    
+    try {
+      const fullModel = await ExecutiveDashboardService.getDashboardReadModel(organizationId);
+      assert(fullModel !== null, 'Dashboard read model returned strictly from local database and deterministic logic');
+    } finally {
+      global.fetch = originalFetch;
+    }
 
     console.log('  ✅ Executive Dashboard GET operates completely locally without external network blocking.');
   }

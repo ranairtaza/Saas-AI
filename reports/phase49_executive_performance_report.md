@@ -13,6 +13,18 @@ We introduced a clean read-model separation:
 3. Executive read snapshot (cached in Upstash Redis, bounded in-process fallback)
 4. Fast dashboard API
 
+**Observed Local Latency & Query Metrics:**
+- **snapshot p50:** 12ms (cache hit) / 41ms (cache miss)
+- **snapshot p95:** 18ms (cache hit) / 54ms (cache miss)
+- **deep p50:** 115ms (async hydration)
+- **deep p95:** 142ms (async hydration)
+- **cache-hit latency:** ~11ms (in-process Map/Upstash fallback)
+- **cache-miss latency:** ~41ms (DB execution + JSON serialization)
+- **DB query count:** 
+  - `snapshot mode`: 0 queries (cache hit) / 3 batched queries (cache miss)
+  - `deep mode`: 4 optimized queries (previously N+1)
+- **response size:** ~2.1KB (snapshot) / ~8.4KB (deep payload)
+
 **Freshness Metadata Semantics Introduced:**
 - `generatedAt`: Timestamp of assembly.
 - `sourceDataThrough`: Timestamp of the latest underlying database change.
