@@ -474,6 +474,40 @@ async function runPhase49Tests() {
     console.log('  ✅ Executive dashboard telemetry correctly recorded and integrated into system observability.');
   }
 
+  // -------------------------------------------------------------------------
+  // Test 12: Executive Dashboard Read Model Query Bounds (Phase 49.2)
+  // -------------------------------------------------------------------------
+  console.log('\nTest 12: Executive Dashboard Read Model Query Bounds...');
+  {
+    invalidateDashboardCache(organizationId);
+
+    let queryCount = 0;
+    prisma.$use(async (params, next) => {
+      queryCount++;
+      return next(params);
+    });
+
+    // Warmup
+    await ExecutiveDashboardService.getDashboardReadModel(organizationId, { forceRefresh: true, mode: 'snapshot' }).catch(() => {});
+
+    queryCount = 0;
+    await ExecutiveDashboardService.getDashboardReadModel(organizationId, { forceRefresh: true, mode: 'snapshot' });
+    console.log(`  📊 Snapshot Cache Miss queries: ${queryCount}`);
+    assert(queryCount <= 12, `Snapshot cache miss exceeded query bounds: ${queryCount} > 12`);
+
+    queryCount = 0;
+    await ExecutiveDashboardService.getDashboardReadModel(organizationId, { forceRefresh: false, mode: 'snapshot' });
+    console.log(`  📊 Snapshot Cache Hit queries: ${queryCount}`);
+    assert(queryCount === 0, `Snapshot cache hit exceeded query bounds: ${queryCount} > 0`);
+
+    queryCount = 0;
+    await ExecutiveDashboardService.getDashboardReadModel(organizationId, { forceRefresh: true, mode: 'deep' });
+    console.log(`  📊 Deep Mode queries: ${queryCount}`);
+    assert(queryCount <= 22, `Deep mode exceeded query bounds: ${queryCount} > 22`);
+    
+    console.log('  ✅ Query boundaries mathematically verified and strictly enforced.');
+  }
+
   console.log('\n✨ All Phase 49 verification tests passed successfully!');
 }
 

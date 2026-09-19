@@ -41,10 +41,17 @@ export class BusinessIntelligenceEngine {
 
     const metrics = await prisma.businessMetric.findMany({
       where: { organizationId },
-      include: {
+      select: {
+        key: true,
+        unit: true,
         snapshots: {
           orderBy: { timestamp: 'desc' },
           take: 2,
+          select: {
+            source: true,
+            value: true,
+            timestamp: true,
+          }
         },
       },
     });

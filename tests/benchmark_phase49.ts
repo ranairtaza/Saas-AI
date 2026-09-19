@@ -10,23 +10,35 @@ import { ExecutiveDashboardService } from '../src/ai/executive/dashboard-service
 import { prisma } from '../src/lib/db';
 import { Redis } from '@upstash/redis';
 
+let queryCount = 0;
+
+// Use Prisma middleware (supported for tracking on the existing global instance)
+prisma.$use(async (params, next) => {
+  queryCount++;
+  return next(params);
+});
+
 async function measure(name: string, iters: number, fn: () => Promise<any>) {
   const times: number[] = [];
+  const queryCounts: number[] = [];
   
   // Warmup
   await fn().catch(() => {});
   
   for (let i = 0; i < iters; i++) {
+    queryCount = 0;
     const start = Date.now();
     await fn();
     times.push(Date.now() - start);
+    queryCounts.push(queryCount);
   }
   
   times.sort((a, b) => a - b);
   const p50 = times[Math.floor(iters * 0.5)];
   const p95 = times[Math.floor(iters * 0.95)];
+  const queries = queryCounts[Math.floor(iters * 0.5)]; // typical queries
   
-  console.log(`[LOCAL] ${name.padEnd(20)} | p50: ${p50}ms | p95: ${p95}ms | samples: ${iters}`);
+  console.log(`[LOCAL] ${name.padEnd(20)} | p50: ${p50}ms | p95: ${p95}ms | queries: ${queries} | samples: ${iters}`);
 }
 
 async function main() {

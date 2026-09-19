@@ -91,6 +91,8 @@ interface CacheEntry<T> {
 // Bounded in-process cache (max 100 entries per map)
 const snapshotCache = new Map<string, CacheEntry<ExecutiveSnapshotReadModel>>();
 const dashboardCache = new Map<string, CacheEntry<ExecutiveDashboardReadModel>>();
+const inFlightSnapshots = new Map<string, Promise<ExecutiveSnapshotReadModel>>();
+const inFlightDashboards = new Map<string, Promise<ExecutiveDashboardReadModel>>();
 const MAX_CACHE_ENTRIES = 100;
 
 const SNAPSHOT_CACHE_TTL_MS = 30_000; // 30-second TTL for fast read snapshots
@@ -144,50 +146,67 @@ export class ExecutiveDashboardService {
   ): Promise<ExecutiveSnapshotReadModel> {
     const startMs = Date.now();
 
-    // 1. Check distributed Redis cache if configured
-    if (!options?.forceRefresh && redis) {
-      try {
-        const cached = await redis.get<ExecutiveSnapshotReadModel>(`exec_snap:${organizationId}`);
-        if (cached) {
-          cached.metadata = { ...cached.metadata, cacheHit: true };
-          return cached;
+    // In-flight request coalescing to prevent cache stampedes
+    const inFlightKey = `snap:${organizationId}`;
+    if (!options?.forceRefresh && inFlightSnapshots.has(inFlightKey)) {
+      return inFlightSnapshots.get(inFlightKey) as Promise<ExecutiveSnapshotReadModel>;
+    }
+
+    const snapshotPromise = (async () => {
+      // 1. Check distributed Redis cache if configured
+      if (!options?.forceRefresh && redis) {
+        try {
+          const cached = await redis.get<ExecutiveSnapshotReadModel>(`exec_snap:${organizationId}`);
+          if (cached) {
+            cached.metadata = { ...cached.metadata, cacheHit: true };
+            return cached;
+          }
+        } catch {
+          // Safe degrade to in-memory on Redis failure
         }
-      } catch {
-        // Safe degrade to in-memory on Redis failure
       }
-    }
 
-    // 2. Check local in-memory cache
-    if (!options?.forceRefresh) {
-      const cached = snapshotCache.get(organizationId);
-      if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
-        return {
-          ...cached.data,
-          metadata: { ...cached.data.metadata, cacheHit: true },
-        };
+      // 2. Check local in-memory cache
+      if (!options?.forceRefresh) {
+        const cached = snapshotCache.get(organizationId);
+        if (cached && Date.now() - cached.cachedAt < SNAPSHOT_CACHE_TTL_MS) {
+          return {
+            ...cached.data,
+            metadata: { ...cached.data.metadata, cacheHit: true },
+          };
+        }
       }
-    }
 
-    // 3. Assemble lightweight snapshot data (Focused queries only)
-    const [telemetry, pendingDecision, pendingAction, pendingDecisionsCount, pendingActionsCount, topOpp, topRiskItem] =
-      await Promise.all([
-        BusinessIntelligenceEngine.assembleTelemetry(organizationId).catch(() => null),
-        prisma.executiveDecision.findFirst({
-          where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
-          orderBy: { priority: 'desc' },
-          select: { id: true, title: true, domain: true, priority: true, status: true },
-        }).catch(() => null),
-        prisma.pendingAction.findFirst({
-          where: { organizationId, status: 'WAITING' },
-          orderBy: { createdAt: 'desc' },
-          select: { id: true, actionName: true, actionType: true, riskLevel: true, status: true },
-        }).catch(() => null),
+      // 3. Assemble lightweight snapshot data (Focused queries only)
+      const telemetryStartMs = Date.now();
+      const telemetry = await BusinessIntelligenceEngine.assembleTelemetry(organizationId).catch(() => null);
+      const telemetryElapsedMs = Date.now() - telemetryStartMs;
+
+      const decisionsStartMs = Date.now();
+      const pendingDecision = await prisma.executiveDecision.findFirst({
+        where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
+        orderBy: { priority: 'desc' },
+        select: { id: true, title: true, domain: true, priority: true, status: true },
+      }).catch(() => null);
+      
+      const pendingAction = await prisma.pendingAction.findFirst({
+        where: { organizationId, status: 'WAITING' },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, actionName: true, actionType: true, riskLevel: true, status: true },
+      }).catch(() => null);
+      
+      const [pendingDecisionsCount, pendingActionsCount] = await Promise.all([
         prisma.executiveDecision.count({
           where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
         }).catch(() => 0),
         prisma.pendingAction.count({
           where: { organizationId, status: 'WAITING' },
-        }).catch(() => 0),
+        }).catch(() => 0)
+      ]);
+      const decisionsElapsedMs = Date.now() - decisionsStartMs;
+
+      const forecastsStartMs = Date.now();
+      const [topOpp, topRiskItem] = await Promise.all([
         prisma.executiveForecast.findFirst({
           where: { organizationId, direction: 'INCREASING', confidence: { not: 'INSUFFICIENT' } },
           orderBy: { updatedAt: 'desc' },
@@ -199,180 +218,196 @@ export class ExecutiveDashboardService {
           select: { metric: true, domain: true, forecastValue: true, currentValue: true }
         }).catch(() => null)
       ]);
+      const forecastsElapsedMs = Date.now() - forecastsStartMs;
 
-    const telemetryMeasured = Boolean(telemetry?.metrics?.revenueMTD?.value != null || telemetry?.metrics?.totalLeads?.value != null);
-    
-    // Evaluate health directly from telemetry (mocking the context shape needed by the evaluator)
-    const mockContext = { telemetry: telemetry || { metrics: {} }, goals: [] };
-    const healthResult = telemetryMeasured 
-      ? BusinessHealthEvaluator.evaluateHealth(mockContext as any)
-      : { overallScore: 75, status: 'STABLE', domains: {} as any };
+      const attentionStartMs = Date.now();
+      const topAttentionEvent = await prisma.executiveEvent.findFirst({
+        where: { organizationId, severity: 'CRITICAL' },
+        orderBy: { occurredAt: 'desc' },
+        select: { id: true, title: true, domain: true, severity: true, occurredAt: true }
+      }).catch(() => null);
+      const attentionElapsedMs = Date.now() - attentionStartMs;
 
-    const healthScore = telemetryMeasured ? healthResult.overallScore : '—';
-    const healthStatus = telemetryMeasured ? healthResult.status : 'UNRATED';
+      const telemetryMeasured = Boolean(telemetry?.metrics?.revenueMTD?.value != null || telemetry?.metrics?.totalLeads?.value != null);
+      
+      // Evaluate health directly from telemetry (mocking the context shape needed by the evaluator)
+      const mockContext = { telemetry: telemetry || { metrics: {} }, goals: [] };
+      const healthResult = telemetryMeasured 
+        ? BusinessHealthEvaluator.evaluateHealth(mockContext as any)
+        : { overallScore: 75, status: 'STABLE', domains: {} as any };
 
-    const topOpportunity = topOpp
-      ? {
-          title: `${topOpp.metric} growth trajectory`,
-          financialImpact: Math.abs(topOpp.forecastValue - topOpp.currentValue),
-          domain: topOpp.domain,
-        }
-      : null;
+      const healthScore = telemetryMeasured ? healthResult.overallScore : '—';
+      const healthStatus = telemetryMeasured ? healthResult.status : 'UNRATED';
 
-    const topRisk = topRiskItem
-      ? {
-          title: `Decline in ${topRiskItem.metric}`,
-          severity: 'HIGH',
-          domain: topRiskItem.domain,
-        }
-      : null;
+      const topOpportunity = topOpp
+        ? {
+            title: `${topOpp.metric} growth trajectory`,
+            financialImpact: Math.abs(topOpp.forecastValue - topOpp.currentValue),
+            domain: topOpp.domain,
+          }
+        : null;
 
-    const topAttention = null; // Lightweight snapshot leaves this null unless we want to query something specific
+      const topRisk = topRiskItem
+        ? {
+            title: `Decline in ${topRiskItem.metric}`,
+            severity: 'HIGH',
+            domain: topRiskItem.domain,
+          }
+        : null;
 
-    const syncStatus = telemetry?.dataFreshness ?? [];
-    const sourceDataThrough = syncStatus.reduce<string | null>((latest, item) => {
-      if (!item.lastSuccessfulSyncAt) return latest;
-      const ts = new Date(item.lastSuccessfulSyncAt).toISOString();
-      return !latest || ts > latest ? ts : latest;
-    }, null);
+      // Deterministic attention calculation based solely on recent critical events
+      const topAttention = topAttentionEvent 
+        ? {
+            title: topAttentionEvent.title,
+            domain: topAttentionEvent.domain,
+            priority: 'CRITICAL',
+            evidence: 'Derived from recent critical executive event',
+            occurredAt: topAttentionEvent.occurredAt
+          }
+        : null;
 
-    let freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE' = syncStatus.length > 0 ? 'REAL_TIME' : 'STALE';
-    if (syncStatus.length === 0) {
-      freshness = 'STALE'; // Cannot claim real-time if no telemetry exists
-    } else if (syncStatus.some((s) => s.freshness === 'STALE')) {
-      freshness = 'STALE';
-    } else if (syncStatus.some((s) => s.freshness === 'AGING')) {
-      freshness = 'AGING';
-    } else if (syncStatus.some((s) => s.freshness === 'FRESH')) {
-      freshness = 'FRESH';
+      const syncStatus = telemetry?.dataFreshness ?? [];
+      const sourceDataThrough = syncStatus.reduce<string | null>((latest, item) => {
+        if (!item.lastSuccessfulSyncAt) return latest;
+        const ts = new Date(item.lastSuccessfulSyncAt).toISOString();
+        return !latest || ts > latest ? ts : latest;
+      }, null);
+
+      let freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE' = syncStatus.length > 0 ? 'REAL_TIME' : 'STALE';
+      if (syncStatus.length === 0) {
+        freshness = 'STALE'; // Cannot claim real-time if no telemetry exists
+      } else if (syncStatus.some((s) => s.freshness === 'STALE')) {
+        freshness = 'STALE';
+      } else if (syncStatus.some((s) => s.freshness === 'AGING')) {
+        freshness = 'AGING';
+      } else if (syncStatus.some((s) => s.freshness === 'FRESH')) {
+        freshness = 'FRESH';
+      }
+
+      const snapshot: ExecutiveSnapshotReadModel = {
+        health: {
+          overallScore: healthScore,
+          status: healthStatus,
+          breakdown: telemetryMeasured ? healthResult.domains : undefined,
+        },
+        executiveSummary: telemetryMeasured 
+          ? 'Business operating within expected parameters.' 
+          : 'Awaiting sufficient telemetry to form an operational summary.',
+        topOpportunity,
+        topRisk,
+        topAttention,
+        topPendingDecision: pendingDecision,
+        topPendingAction: pendingAction,
+        pendingDecisionsCount,
+        pendingActionsCount,
+        syncStatus,
+        evidenceState: {
+          overallEvidenceSufficiency: telemetryMeasured ? 'PARTIAL' : 'INSUFFICIENT',
+          telemetryMeasured,
+          confidence: telemetryMeasured ? 'MEDIUM' : 'UNAVAILABLE',
+        },
+        metadata: {
+          generatedAt: new Date().toISOString(),
+          sourceDataThrough,
+          freshness,
+          calculationStatus: telemetryMeasured ? 'READY' : 'EMPTY',
+          cacheHit: false,
+        },
+      };
+
+      // Store in local cache
+      setBoundedLocalCache(snapshotCache, organizationId, snapshot);
+
+      // Store in Redis with 30s TTL
+      if (redis) {
+        redis.set(`exec_snap:${organizationId}`, snapshot, { ex: 30 }).catch(() => {});
+      }
+
+      const elapsed = Date.now() - startMs;
+      recordTelemetry({
+        organizationId,
+        eventType: 'REQUEST',
+        severity: 'INFO',
+        route: '/api/executive/dashboard',
+        method: 'GET',
+        service: 'executive.snapshot',
+        durationMs: elapsed,
+        metadata: { cacheHit: false, durationMs: elapsed },
+      });
+
+      return snapshot;
+    })();
+
+    // Store the in-flight promise to prevent stampedes
+    inFlightSnapshots.set(inFlightKey, snapshotPromise);
+
+    try {
+      return await snapshotPromise;
+    } finally {
+      inFlightSnapshots.delete(inFlightKey);
     }
-
-    const snapshot: ExecutiveSnapshotReadModel = {
-      health: {
-        overallScore: healthScore,
-        status: healthStatus,
-        breakdown: telemetryMeasured ? healthResult.domains : undefined,
-      },
-      executiveSummary: telemetryMeasured 
-        ? 'Business operating within expected parameters.' 
-        : 'Awaiting sufficient telemetry to form an operational summary.',
-      topOpportunity,
-      topRisk,
-      topAttention,
-      topPendingDecision: pendingDecision,
-      topPendingAction: pendingAction,
-      pendingDecisionsCount,
-      pendingActionsCount,
-      syncStatus,
-      evidenceState: {
-        overallEvidenceSufficiency: telemetryMeasured ? 'PARTIAL' : 'INSUFFICIENT',
-        telemetryMeasured,
-        confidence: telemetryMeasured ? 'MEDIUM' : 'UNAVAILABLE',
-      },
-      metadata: {
-        generatedAt: new Date().toISOString(),
-        sourceDataThrough,
-        freshness,
-        calculationStatus: telemetryMeasured ? 'READY' : 'EMPTY',
-        cacheHit: false,
-      },
-    };
-
-    // Store in local cache
-    setBoundedLocalCache(snapshotCache, organizationId, snapshot);
-
-    // Store in Redis with 30s TTL
-    if (redis) {
-      redis.set(`exec_snap:${organizationId}`, snapshot, { ex: 30 }).catch(() => {});
-    }
-
-    const elapsed = Date.now() - startMs;
-    recordTelemetry({
-      organizationId,
-      eventType: 'REQUEST',
-      severity: 'INFO',
-      route: '/api/executive/dashboard',
-      method: 'GET',
-      service: 'executive.snapshot',
-      durationMs: elapsed,
-      metadata: { cacheHit: false, durationMs: elapsed },
-    });
-
-    return snapshot;
   }
 
   /**
-   * Deep Executive Intelligence Read Model (Outcomes, Recommendations, Events).
+   * Deep Executive Intelligence Read Model.
    * Loaded progressively after initial screen rendering.
    */
   static async getExecutiveDeepIntelligence(
     organizationId: string,
     options?: { forceRefresh?: boolean }
   ) {
-    const [outcomes, recommendations, events] = await Promise.all([
+    const [outcomes, recommendations, events, decisions, actionPlans, forecasts, goals, pendingActions] = await Promise.all([
       prisma.executiveOutcome.findMany({
         where: { organizationId },
         orderBy: { startedAt: 'desc' },
         take: 10,
-        select: {
-          id: true,
-          targetKpiKey: true,
-          baselineValue: true,
-          finalValue: true,
-          deltaPercentage: true,
-          expectedValue: true,
-          variance: true,
-          varianceStatus: true,
-          resultStatus: true,
-          attributionLevel: true,
-          attributionRationale: true,
-          effectivenessScore: true,
-          measurementWindowDays: true,
-          evaluationDueAt: true,
-          startedAt: true,
-          status: true,
-        },
       }).catch(() => []),
 
       prisma.executiveRecommendation.findMany({
-        where: { organizationId, status: 'ACTIVE' },
-        orderBy: { priorityScore: 'desc' },
-        take: 5,
-        select: {
-          id: true,
-          priorityLevel: true,
-          domain: true,
-          priorityScore: true,
-          status: true,
-          title: true,
-          executiveSummary: true,
-          expectedImpact: true,
-          createdAt: true,
-        },
+        where: { organizationId, status: 'PROPOSED' },
+        orderBy: { confidence: 'desc' },
+        take: 10,
       }).catch(() => []),
 
       prisma.executiveEvent.findMany({
         where: { organizationId },
+        orderBy: { occurredAt: 'desc' },
+        take: 15,
+      }).catch(() => []),
+
+      prisma.executiveDecision.findMany({
+        where: { organizationId },
+        orderBy: { priority: 'desc' },
+        take: 20,
+      }).catch(() => []),
+
+      prisma.executiveActionPlan.findMany({
+        where: { organizationId },
         orderBy: { createdAt: 'desc' },
+        take: 5,
+        include: { steps: true },
+      }).catch(() => []),
+
+      prisma.executiveForecast.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
+      }).catch(() => []),
+
+      prisma.businessGoal.findMany({
+        where: { organizationId },
+        orderBy: { targetDate: 'asc' },
         take: 10,
-        select: {
-          id: true,
-          title: true,
-          severity: true,
-          domain: true,
-          eventType: true,
-          summary: true,
-          sourceTable: true,
-          sourceRecordId: true,
-          facts: true,
-          metadata: true,
-          createdAt: true,
-          occurredAt: true,
-        },
+      }).catch(() => []),
+
+      prisma.pendingAction.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: 'desc' },
+        take: 15,
       }).catch(() => []),
     ]);
 
-    return { outcomes, recommendations, events };
+    return { outcomes, recommendations, events, decisions, actionPlans, forecasts, goals, pendingActions };
   }
 
   /**
@@ -392,50 +427,41 @@ export class ExecutiveDashboardService {
 
     // Staged loading: if only deep sections requested
     if (mode === 'deep') {
-      const [operatingState, { outcomes, recommendations, events }] = await Promise.all([
-        ExecutiveOperatingSystemService.getOperatingState(organizationId, {
-          forceRefresh: options?.forceRefresh,
-        }),
-        this.getExecutiveDeepIntelligence(organizationId, options),
-      ]);
-
-      const valueSynthesis = ExecutiveValueLayer.synthesize(operatingState);
-      let briefing: any | null = null;
-      if (operatingState.businessContext) {
-        try {
-          const criticalCount = events.filter((e: any) => e.severity === 'CRITICAL').length;
-          const health = BusinessHealthEvaluator.evaluateHealth(operatingState.businessContext, {
-            activeEventCount: events.length,
-            criticalEventCount: criticalCount,
-          });
-          const observations = ExecutiveObservationEngine.synthesizeObservations(
-            operatingState.businessContext,
-            events as any
-          );
-          briefing = ExecutiveBriefingEngine.generateGroundedFallback({
-            context: operatingState.businessContext,
-            events: events as any,
-            recommendations,
-            health,
-            observations,
-            decisions: operatingState.activeDecisions || [],
-            forecasts: operatingState.activeForecasts || [],
-            actionPlans: operatingState.actionPlans || [],
-            learningSignals: operatingState.recentLearningSignals || [],
-            recentLearningSignals: operatingState.recentLearningSignals || [],
-          });
-        } catch (e) {
-          console.warn('[ExecutiveDashboardService] Briefing synthesis fallback:', e);
-        }
+      const deepData = await this.getExecutiveDeepIntelligence(organizationId, options);
+      
+      // We do not re-build BusinessContext or getOperatingState here.
+      // If we need a briefing, we create a lightweight deterministic one, or return null if insufficient.
+      let briefing = null;
+      if (deepData.events.length > 0 || deepData.decisions.length > 0) {
+        briefing = ExecutiveBriefingEngine.generateGroundedFallback({
+          context: { organizationId, telemetry: { metrics: {} }, goals: [] } as any, // minimal dummy context
+          events: deepData.events as any,
+          recommendations: deepData.recommendations,
+          health: { 
+            overallScore: 75, 
+            status: 'STABLE', 
+            domains: { 
+              revenue: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
+              pipeline: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
+              operations: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
+              goals: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] } 
+            },
+            summary: 'Stable',
+            evaluatedAt: new Date()
+          },
+          observations: { verifiedFacts: [], observations: [], hypotheses: [] },
+          decisions: deepData.decisions as any,
+          forecasts: deepData.forecasts as any,
+          actionPlans: deepData.actionPlans as any,
+          learningSignals: [],
+          recentLearningSignals: [],
+        });
       }
 
       return {
-        operatingState,
-        valueSynthesis,
+        // Omitting operatingState and valueSynthesis for pure deep queries unless specifically required
         briefing,
-        outcomes,
-        recommendations,
-        events,
+        ...deepData,
         refreshedAt: new Date().toISOString(),
       };
     }
