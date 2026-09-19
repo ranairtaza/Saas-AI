@@ -1,8 +1,6 @@
 import { IntegrationProvider, SyncResult } from '../core/types';
 import { MetricsRepository } from '../../business/metrics/repository';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import prisma from '@/lib/db';
 
 export class StripeProvider implements IntegrationProvider {
   id = 'stripe';

@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { METRIC_DEFINITIONS } from '../../business/metrics/definitions';
-
-const prisma = new PrismaClient();
 
 export interface CSVRow {
   date: string;

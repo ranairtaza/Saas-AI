@@ -6,6 +6,7 @@
 
 import prisma from '@/lib/db';
 import { sanitizeMetadata } from './sanitizer';
+import { SYSTEM_SLOW_REQUEST_MS, SYSTEM_TELEMETRY_SAMPLE_RATE } from './alert-constants';
 import * as crypto from 'crypto';
 
 export type SystemEventType =
@@ -43,8 +44,34 @@ export interface RecordTelemetryInput {
   metadata?: unknown;
 }
 
-const SLOW_REQUEST_MS = Number(process.env.SYSTEM_SLOW_REQUEST_MS || '750');
-const SAMPLE_RATE = Number(process.env.SYSTEM_TELEMETRY_SAMPLE_RATE || '0.1');
+const SLOW_REQUEST_MS = SYSTEM_SLOW_REQUEST_MS;
+const SAMPLE_RATE = SYSTEM_TELEMETRY_SAMPLE_RATE;
+
+// In-memory counters for accurate request volume tracking (not just sampled count)
+interface AggregateCounters {
+  exactTotalRequests: number;
+  successfulRequests: number;
+  errors4xx: number;
+  errors5xx: number;
+  slowRequests: number;
+}
+
+const globalCounters: AggregateCounters = {
+  exactTotalRequests: 0,
+  successfulRequests: 0,
+  errors4xx: 0,
+  errors5xx: 0,
+  slowRequests: 0,
+};
+
+const orgCounters: Map<string, AggregateCounters> = new Map();
+
+export function getAggregateCounters(organizationId?: string | null): AggregateCounters & { calculationMode: 'EXACT_COUNTERS' } {
+  if (organizationId && orgCounters.has(organizationId)) {
+    return { ...orgCounters.get(organizationId)!, calculationMode: 'EXACT_COUNTERS' };
+  }
+  return { ...globalCounters, calculationMode: 'EXACT_COUNTERS' };
+}
 
 // Pipeline self-monitoring state
 interface PipelineStats {
@@ -107,16 +134,54 @@ async function flushBatch(): Promise<void> {
 export function recordTelemetry(event: RecordTelemetryInput): void {
   stats.totalRecorded++;
 
+  // Update real-time aggregate counters for every request
+  globalCounters.exactTotalRequests++;
+  if (event.organizationId) {
+    if (!orgCounters.has(event.organizationId)) {
+      orgCounters.set(event.organizationId, {
+        exactTotalRequests: 0,
+        successfulRequests: 0,
+        errors4xx: 0,
+        errors5xx: 0,
+        slowRequests: 0,
+      });
+    }
+    orgCounters.get(event.organizationId)!.exactTotalRequests++;
+  }
+
+  const isSuccess = event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 200 && event.statusCode < 400;
+  if (isSuccess) {
+    globalCounters.successfulRequests++;
+    if (event.organizationId) orgCounters.get(event.organizationId)!.successfulRequests++;
+  }
+
+  const is4xx = event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 400 && event.statusCode < 500;
+  if (is4xx) {
+    globalCounters.errors4xx++;
+    if (event.organizationId) orgCounters.get(event.organizationId)!.errors4xx++;
+  }
+
+  const is5xx = event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 500;
+  if (is5xx) {
+    globalCounters.errors5xx++;
+    if (event.organizationId) orgCounters.get(event.organizationId)!.errors5xx++;
+  }
+
+  const isSlow =
+    event.durationMs !== undefined && event.durationMs !== null && event.durationMs >= SLOW_REQUEST_MS;
+  if (isSlow) {
+    globalCounters.slowRequests++;
+    if (event.organizationId) orgCounters.get(event.organizationId)!.slowRequests++;
+  }
+
   const isError =
-    (event.statusCode !== undefined && event.statusCode !== null && event.statusCode >= 400) ||
+    is4xx ||
+    is5xx ||
     event.severity === 'ERROR' ||
     event.severity === 'CRITICAL' ||
     event.eventType.endsWith('_ERROR') ||
     event.eventType.endsWith('_FAILURE') ||
     event.eventType === 'ERROR';
-
-  const isSlow =
-    event.durationMs !== undefined && event.durationMs !== null && event.durationMs >= SLOW_REQUEST_MS;
 
   const isSpecialEvent =
     event.eventType === 'SECURITY_EVENT' ||

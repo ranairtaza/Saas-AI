@@ -11,11 +11,27 @@ jobs:
     name: Validate, Typecheck, Test & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?pgbouncer=true
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
       SESSION_SECRET: test_session_secret_32_chars_minimum_length_required_ci
+      JWT_SECRET: test_session_secret_32_chars_minimum_length_required_ci
       PROVIDER_ENCRYPTION_KEY: test_encryption_key_32_chars_minimum_length_ci
       INTERNAL_JOB_SECRET: test_internal_job_secret_for_ci_pipeline
       STRIPE_SECRET_KEY: sk_test_mock_stripe_key_for_ci_suite
@@ -38,6 +54,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
+
+      - name: Deploy Prisma Migrations to CI PostgreSQL
+        run: npx prisma migrate deploy
 
       - name: TypeScript Typecheck
         run: npx tsc --noEmit

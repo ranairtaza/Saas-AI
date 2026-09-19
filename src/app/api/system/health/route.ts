@@ -6,6 +6,7 @@ import { checkMigrationConsistency } from '@/lib/observability/migration-checker
 import { validateSystemConfig } from '@/lib/observability/config-validator';
 import { getDeploymentMetadata } from '@/lib/observability/deployment';
 import { getTelemetryPipelineHealth } from '@/lib/observability/telemetry';
+import { isSystemOperator } from '@/permissions/definitions';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    const isGlobalOperator = isSystemOperator(user);
+    if (!isGlobalOperator && user.role !== 'OWNER' && user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden: Owner or Admin role required' },
         { status: 403 }
@@ -24,7 +26,7 @@ export async function GET() {
     }
 
     // 1. PostgreSQL Database & Latency
-    let dbStatus: 'HEALTHY' | 'UNAVAILABLE' = 'HEALTHY';
+    let dbStatus: 'AVAILABLE' | 'UNAVAILABLE' = 'AVAILABLE';
     let dbLatencyMs = 0;
     try {
       const start = Date.now();
@@ -34,37 +36,37 @@ export async function GET() {
       dbStatus = 'UNAVAILABLE';
     }
 
-    // 2. Migration State
+    // 2. Migration State (Real detection)
     const migrationCheck = await checkMigrationConsistency();
 
     // 3. Database Write Safety Configuration
     const writesAllowed = isDatabaseWritesAllowed();
     const dbIdentifier = process.env.LEADMACHINE_DATABASE_ID || 'unspecified';
 
-    // 4. Gemini AI Configuration
+    // 4. Gemini AI Configuration (Truthful status)
     const hasGeminiKey = Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY);
     const isMockGemini = process.env.GOOGLE_GENERATIVE_AI_API_KEY === 'mock_key';
-    const geminiStatus = hasGeminiKey ? (isMockGemini ? 'TEST/MOCK' : 'LIVE') : 'NOT_CONFIGURED';
+    const geminiStatus = hasGeminiKey ? (isMockGemini ? 'TEST/MOCK' : 'CONFIGURED') : 'NOT_CONFIGURED';
 
     // 5. Stripe Billing Configuration
     const hasStripeKey = Boolean(process.env.STRIPE_SECRET_KEY);
-    const stripeStatus = hasStripeKey ? 'HEALTHY' : 'NOT_CONFIGURED';
+    const stripeStatus = hasStripeKey ? 'CONFIGURED' : 'NOT_CONFIGURED';
 
     // 6. Upstash Redis Cache
     const hasUpstash = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
-    const upstashStatus = hasUpstash ? 'HEALTHY' : 'NOT_CONFIGURED';
+    const upstashStatus = hasUpstash ? 'CONFIGURED' : 'NOT_CONFIGURED';
 
     // 7. Inngest Background Workflows
     const hasInngest = Boolean(process.env.INNGEST_EVENT_KEY || process.env.INNGEST_SIGNING_KEY);
-    const inngestStatus = hasInngest ? 'HEALTHY' : 'NOT_CONFIGURED';
+    const inngestStatus = hasInngest ? 'CONFIGURED' : 'NOT_CONFIGURED';
 
     // 8. Integrations Subsystem
-    let integrationsStatus: 'HEALTHY' | 'DEGRADED' | 'NOT_CONFIGURED' = 'NOT_CONFIGURED';
+    let integrationsStatus: 'AVAILABLE' | 'DEGRADED' | 'NOT_CONFIGURED' = 'NOT_CONFIGURED';
     try {
       const activeConnections = await prisma.integrationConnection.count({ where: { status: 'ACTIVE' } });
       const failingConnections = await prisma.integrationConnection.count({ where: { status: 'FAILING' } });
       if (activeConnections > 0) {
-        integrationsStatus = failingConnections > 0 ? 'DEGRADED' : 'HEALTHY';
+        integrationsStatus = failingConnections > 0 ? 'DEGRADED' : 'AVAILABLE';
       }
     } catch {
       integrationsStatus = 'DEGRADED';
@@ -79,15 +81,19 @@ export async function GET() {
     const telemetryPipeline = getTelemetryPipelineHealth();
 
     const overallStatus =
-      dbStatus === 'HEALTHY' && migrationCheck.status === 'SYNCHRONIZED' && missingRequired === 0
+      dbStatus === 'AVAILABLE' && migrationCheck.status === 'SYNCHRONIZED' && missingRequired === 0
         ? 'HEALTHY'
-        : dbStatus === 'HEALTHY'
+        : dbStatus === 'AVAILABLE'
         ? 'DEGRADED'
         : 'UNAVAILABLE';
 
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       overallStatus,
+      tenantContext: {
+        isGlobalOperator,
+        organizationId: isGlobalOperator ? null : user.organizationId,
+      },
       deployment,
       dependencies: {
         database: {

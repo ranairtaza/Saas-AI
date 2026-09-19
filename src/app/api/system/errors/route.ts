@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import prisma from '@/lib/db';
+import { isSystemOperator } from '@/permissions/definitions';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN') {
+    const isGlobalOperator = isSystemOperator(user);
+    if (!isGlobalOperator && user.role !== 'OWNER' && user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Forbidden: Owner or Admin role required' },
         { status: 403 }
@@ -22,6 +24,9 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Number(searchParams.get('limit') || '50'), 100);
     const severity = searchParams.get('severity');
 
+    // Tenant isolation: enforce user.organizationId unless caller is global system operator
+    const effectiveOrgId = isGlobalOperator ? searchParams.get('organizationId') || undefined : user.organizationId;
+
     const where: any = {
       OR: [
         { statusCode: { gte: 400 } },
@@ -29,6 +34,10 @@ export async function GET(req: NextRequest) {
         { eventType: 'ERROR' },
       ],
     };
+
+    if (effectiveOrgId) {
+      where.organizationId = effectiveOrgId;
+    }
 
     if (severity) {
       where.severity = severity;
@@ -57,7 +66,14 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ events });
+    return NextResponse.json({
+      events,
+      tenantContext: {
+        isGlobalOperator,
+        organizationId: effectiveOrgId || null,
+        isolated: !isGlobalOperator,
+      },
+    });
   } catch (error: any) {
     console.error('[SystemErrors] Failed to fetch system errors:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

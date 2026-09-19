@@ -1,4 +1,5 @@
-﻿export const ROLES = {
+export const ROLES = {
+  SYSTEM_ADMIN: 'SYSTEM_ADMIN',
   OWNER: 'OWNER',
   ADMIN: 'ADMIN',
   MANAGER: 'MANAGER',
@@ -7,6 +8,12 @@
 } as const;
 
 export type Role = keyof typeof ROLES;
+
+export function isSystemOperator(user: { role?: string } | null | undefined): boolean {
+  if (!user || !user.role) return false;
+  return user.role === 'SYSTEM_ADMIN' || user.role === 'SUPER_ADMIN';
+}
+
 
 export const PERMISSIONS = {
   // Lead permissions
@@ -47,6 +54,7 @@ export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 // Map roles to their allowed permissions
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
+  [ROLES.SYSTEM_ADMIN]: Object.values(PERMISSIONS), // System admin has full cross-system access
   [ROLES.OWNER]: Object.values(PERMISSIONS), // Owner has all permissions
   [ROLES.ADMIN]: [
     PERMISSIONS.LEAD_READ,

@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { hasPermission } from '../../../../permissions/rbac';
 import { PERMISSIONS } from '../../../../permissions/definitions';
 import { syncManager } from '../../../../integrations/core/manager';
 
 import { getCurrentUser } from '@/lib/session';
-
-const prisma = new PrismaClient();
 
 export async function POST(req: Request) {
   try {

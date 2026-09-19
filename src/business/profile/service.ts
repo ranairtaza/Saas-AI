@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { requirePermission } from '../../permissions/rbac';
 import { PERMISSIONS } from '../../permissions/definitions';
-
-const prisma = new PrismaClient();
 
 export interface BusinessProfileData {
   industry?: string;

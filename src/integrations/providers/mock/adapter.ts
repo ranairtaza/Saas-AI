@@ -1,8 +1,6 @@
 import { IntegrationProvider, SyncResult } from '../../core/types';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { METRIC_DEFINITIONS } from '../../../business/metrics/definitions';
-
-const prisma = new PrismaClient();
 
 export class MockIntegrationProvider implements IntegrationProvider {
   id = 'mock_provider';

@@ -245,6 +245,7 @@ export default function SystemCommandCenterPage() {
   const statusBadge = (status: string) => {
     switch (status) {
       case "HEALTHY":
+      case "AVAILABLE":
       case "LIVE":
       case "CONFIGURED":
       case "SYNCHRONIZED":
@@ -581,17 +582,23 @@ export default function SystemCommandCenterPage() {
           {/* Performance Overview KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="text-xs text-muted-foreground font-medium">Telemetry Volume ({timeRange})</div>
-              <div className="text-2xl font-extrabold text-foreground mt-1">{data.performance.totalRequests}</div>
-            </div>
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="text-xs text-muted-foreground font-medium">Average Latency</div>
-              <div className="text-2xl font-extrabold text-foreground mt-1">{data.performance.avgLatencyMs} ms</div>
-            </div>
-            <div className="p-4 rounded-xl border border-border bg-card">
-              <div className="text-xs text-muted-foreground font-medium">p50 / p95 Latency</div>
+              <div className="text-xs text-muted-foreground font-medium">Observed Requests (Sampled, {timeRange})</div>
               <div className="text-2xl font-extrabold text-foreground mt-1">
-                {data.performance.p50Ms} <span className="text-xs font-normal text-muted-foreground">/</span> {data.performance.p95Ms} ms
+                {data.performance.totalRequests > 0 ? data.performance.totalRequests : "—"}
+              </div>
+            </div>
+            <div className="p-4 rounded-xl border border-border bg-card">
+              <div className="text-xs text-muted-foreground font-medium">Observed Avg Latency</div>
+              <div className="text-2xl font-extrabold text-foreground mt-1">
+                {data.performance.avgLatencyMs > 0 ? `${data.performance.avgLatencyMs} ms` : "—"}
+              </div>
+            </div>
+            <div className="p-4 rounded-xl border border-border bg-card">
+              <div className="text-xs text-muted-foreground font-medium">Observed p50 / p95 (Sampled)</div>
+              <div className="text-2xl font-extrabold text-foreground mt-1">
+                {data.performance.p50Ms > 0 ? data.performance.p50Ms : "—"}{" "}
+                <span className="text-xs font-normal text-muted-foreground">/</span>{" "}
+                {data.performance.p95Ms > 0 ? `${data.performance.p95Ms} ms` : "—"}
               </div>
             </div>
             <div className="p-4 rounded-xl border border-border bg-card">

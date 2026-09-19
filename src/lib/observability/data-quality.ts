@@ -28,7 +28,7 @@ export interface DataQualityReport {
   invalidCount: number;
 }
 
-export async function checkDataQuality(): Promise<DataQualityReport> {
+export async function checkDataQuality(organizationId?: string): Promise<DataQualityReport> {
   const rawChecks: QualityCheckItem[] = [];
   const addCheck = (item: {
     id: string;
@@ -42,11 +42,14 @@ export async function checkDataQuality(): Promise<DataQualityReport> {
     rawChecks.push({ ...item, check: item.name });
   };
 
+  const orgFilter = organizationId ? { organizationId } : {};
+
   // 1. Check Telemetry & Metrics Presence
   try {
-    const totalMetrics = await prisma.businessMetric.count();
+    const totalMetrics = await prisma.businessMetric.count({ where: orgFilter });
     const metricsWithoutSnapshots = await prisma.businessMetric.count({
       where: {
+        ...orgFilter,
         snapshots: { none: {} },
       },
     });
@@ -93,6 +96,7 @@ export async function checkDataQuality(): Promise<DataQualityReport> {
     const staleThreshold = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const staleConnections = await prisma.integrationConnection.findMany({
       where: {
+        ...orgFilter,
         status: 'ACTIVE',
         OR: [
           { lastSyncAt: { lt: staleThreshold } },
@@ -113,7 +117,7 @@ export async function checkDataQuality(): Promise<DataQualityReport> {
         details: staleConnections.map((c) => c.integration.provider).join(', '),
       });
     } else {
-      const activeCount = await prisma.integrationConnection.count({ where: { status: 'ACTIVE' } });
+      const activeCount = await prisma.integrationConnection.count({ where: { ...orgFilter, status: 'ACTIVE' } });
       addCheck({
         id: 'stale-integrations',
         name: 'Integration Sync Freshness',
@@ -137,9 +141,9 @@ export async function checkDataQuality(): Promise<DataQualityReport> {
 
   // 3. Check Outcome Attributions & Inconclusive States
   try {
-    const totalOutcomes = await prisma.executiveOutcome.count();
+    const totalOutcomes = await prisma.executiveOutcome.count({ where: orgFilter });
     const inconclusiveOutcomes = await prisma.executiveOutcome.count({
-      where: { resultStatus: 'INCONCLUSIVE' },
+      where: { ...orgFilter, resultStatus: 'INCONCLUSIVE' },
     });
 
     if (totalOutcomes === 0) {

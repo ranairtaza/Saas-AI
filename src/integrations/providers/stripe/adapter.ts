@@ -1,9 +1,7 @@
 import { IntegrationProvider, SyncResult } from '../../core/types';
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { StripeTelemetryProvider } from '../../../lib/providers/stripe-provider';
 import { decrypt } from '../../../lib/encryption';
-
-const prisma = new PrismaClient();
 
 export const stripeAdapter: IntegrationProvider = {
   id: 'stripe',

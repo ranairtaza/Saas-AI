@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/db';
 import { IntegrationProvider } from './types';
 import { inngest } from '../../lib/inngest/client';
-
-const prisma = new PrismaClient();
 
 export class SyncManager {
   private providers: Map<string, IntegrationProvider> = new Map();

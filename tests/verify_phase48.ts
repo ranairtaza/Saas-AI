@@ -49,7 +49,7 @@ async function runTests() {
     const res = await readyHealthGET();
     assert(res.status === 200 || res.status === 503);
     const body = await res.json();
-    assert(['HEALTHY', 'DEGRADED', 'UNAVAILABLE', 'READY'].includes(body.status), `Unexpected status: ${body.status}`);
+    assert(['HEALTHY', 'DEGRADED', 'UNAVAILABLE', 'READY', 'AVAILABLE'].includes(body.status), `Unexpected status: ${body.status}`);
     assert('dependencies' in body, 'Dependencies map must be present');
     assert(!JSON.stringify(body).includes('postgresql://'), 'Database URL must not leak in readiness');
   });
