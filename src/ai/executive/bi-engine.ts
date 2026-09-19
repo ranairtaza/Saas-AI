@@ -36,6 +36,88 @@ export interface UnifiedTelemetry {
 }
 
 export class BusinessIntelligenceEngine {
+  /**
+   * Lightweight telemetry assembly specifically for dashboard snapshot path.
+   * Completely bypasses live CRM count queries to guarantee < 50ms latency.
+   */
+  static async getSnapshotTelemetry(organizationId: string): Promise<UnifiedTelemetry> {
+    const metrics = await prisma.businessMetric.findMany({
+      where: { organizationId },
+      select: {
+        key: true,
+        unit: true,
+        snapshots: {
+          orderBy: { timestamp: 'desc' },
+          take: 2,
+          select: { source: true, value: true, timestamp: true }
+        }
+      }
+    });
+
+    const metricMap = new Map<string, any>();
+    for (const m of metrics) {
+      if (m.snapshots.length > 0) {
+        const primary = m.snapshots[0];
+        let isConflict = false;
+        if (m.snapshots.length > 1) {
+          const secondary = m.snapshots[1];
+          const timeDiffHours = Math.abs(primary.timestamp.getTime() - secondary.timestamp.getTime()) / (1000 * 60 * 60);
+          if (timeDiffHours <= 24 && primary.source !== secondary.source) {
+            if (primary.value !== secondary.value) {
+              if (secondary.value !== 0) {
+                 const variance = Math.abs(primary.value - secondary.value) / Math.abs(secondary.value);
+                 if (variance > 0.05) isConflict = true; 
+              } else if (primary.value !== 0) {
+                 isConflict = true;
+              }
+            }
+          }
+        }
+        const freshnessStatus = primary.source === 'crm' ? 'CURRENT' : calculateFreshness(primary.timestamp);
+        
+        let confidence = 'UNKNOWN';
+        if (isConflict) confidence = 'LOW';
+        else if (freshnessStatus === 'CURRENT') confidence = 'HIGH';
+        else if (freshnessStatus === 'STALE') confidence = 'LOW';
+        else if (freshnessStatus === 'AGING') confidence = 'MEDIUM';
+
+        metricMap.set(m.key, {
+          value: primary.value,
+          unit: m.unit,
+          source: primary.source,
+          freshness: isConflict ? 'CONFLICTING' : freshnessStatus,
+          confidence,
+          conflict: isConflict,
+          lastUpdatedAt: primary.timestamp
+        });
+      }
+    }
+
+    const resolveMetric = (key: string): TelemetryMetric => {
+      const data = metricMap.get(key);
+      if (data) return data;
+      return { value: null, unit: 'UNKNOWN', source: 'none', freshness: 'UNKNOWN', confidence: 'UNKNOWN', conflict: false, lastUpdatedAt: null };
+    };
+
+    return {
+      metrics: {
+        revenueMTD: resolveMetric('REVENUE_MTD'),
+        revenueLastMonth: resolveMetric('REVENUE_LAST_MONTH'),
+        revenueGrowth: resolveMetric('REVENUE_GROWTH'),
+        transactionsMTD: resolveMetric('TRANSACTIONS_MTD'),
+        newCustomersMTD: resolveMetric('NEW_CUSTOMERS_MTD'),
+        activeSubscriptions: resolveMetric('ACTIVE_SUBSCRIPTIONS'),
+        totalLeads: resolveMetric('TOTAL_LEADS'),
+        qualifiedLeads: resolveMetric('QUALIFIED_LEADS'),
+        activeLeadsCount: resolveMetric('ACTIVE_LEADS_COUNT'),
+        unassignedHighPriorityLeads: resolveMetric('UNASSIGNED_HIGH_PRIORITY_LEADS'),
+        pipelineValue: resolveMetric('PIPELINE_VALUE'),
+      },
+      recentAnomalies: [],
+      dataFreshness: []
+    };
+  }
+
   static async assembleTelemetry(organizationId: string): Promise<UnifiedTelemetry> {
     // Read-only deterministic telemetry: DO NOT perform database writes/snapshots on GET
 

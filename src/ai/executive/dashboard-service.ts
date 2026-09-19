@@ -21,6 +21,7 @@ import { BusinessIntelligenceEngine } from './bi-engine';
 import { ExecutiveObservationEngine } from './observation-engine';
 import { Redis } from '@upstash/redis';
 import { recordTelemetry } from '../../lib/observability/telemetry';
+import { ExecutiveEventData, EventType, EventDomain, EventSeverity } from './events/types';
 
 export interface ExecutiveSnapshotReadModel {
   health: {
@@ -61,6 +62,13 @@ export interface ExecutiveSnapshotReadModel {
     freshness: 'REAL_TIME' | 'FRESH' | 'AGING' | 'STALE';
     calculationStatus: 'READY' | 'COMPUTING' | 'DEGRADED' | 'EMPTY';
     cacheHit: boolean;
+    snapshot?: {
+      telemetry: number;
+      decisionQueries: number;
+      forecastQueries: number;
+      attention: number;
+      total: number;
+    };
   };
 }
 
@@ -179,7 +187,7 @@ export class ExecutiveDashboardService {
 
       // 3. Assemble lightweight snapshot data (Focused queries only)
       const telemetryStartMs = Date.now();
-      const telemetry = await BusinessIntelligenceEngine.assembleTelemetry(organizationId).catch(() => null);
+      const telemetry = await BusinessIntelligenceEngine.getSnapshotTelemetry(organizationId).catch(() => null);
       const telemetryElapsedMs = Date.now() - telemetryStartMs;
 
       const decisionsStartMs = Date.now();
@@ -312,6 +320,13 @@ export class ExecutiveDashboardService {
           freshness,
           calculationStatus: telemetryMeasured ? 'READY' : 'EMPTY',
           cacheHit: false,
+          snapshot: {
+            telemetry: telemetryElapsedMs || 0,
+            decisionQueries: decisionsElapsedMs || 0,
+            forecastQueries: forecastsElapsedMs || 0,
+            attention: attentionElapsedMs || 0,
+            total: Date.now() - startMs
+          }
         },
       };
 
@@ -332,7 +347,14 @@ export class ExecutiveDashboardService {
         method: 'GET',
         service: 'executive.snapshot',
         durationMs: elapsed,
-        metadata: { cacheHit: false, durationMs: elapsed },
+        metadata: { 
+          cacheHit: false, 
+          durationMs: elapsed,
+          telemetryMs: telemetryElapsedMs || 0,
+          decisionQueriesMs: decisionsElapsedMs || 0,
+          forecastQueriesMs: forecastsElapsedMs || 0,
+          attentionMs: attentionElapsedMs || 0
+        },
       });
 
       return snapshot;
@@ -385,7 +407,6 @@ export class ExecutiveDashboardService {
         where: { organizationId },
         orderBy: { createdAt: 'desc' },
         take: 5,
-        include: { steps: true },
       }).catch(() => []),
 
       prisma.executiveForecast.findMany({
@@ -396,7 +417,7 @@ export class ExecutiveDashboardService {
 
       prisma.businessGoal.findMany({
         where: { organizationId },
-        orderBy: { targetDate: 'asc' },
+        orderBy: { endDate: 'asc' },
         take: 10,
       }).catch(() => []),
 
@@ -432,35 +453,12 @@ export class ExecutiveDashboardService {
       // We do not re-build BusinessContext or getOperatingState here.
       // If we need a briefing, we create a lightweight deterministic one, or return null if insufficient.
       let briefing = null;
-      if (deepData.events.length > 0 || deepData.decisions.length > 0) {
-        briefing = ExecutiveBriefingEngine.generateGroundedFallback({
-          context: { organizationId, telemetry: { metrics: {} }, goals: [] } as any, // minimal dummy context
-          events: deepData.events as any,
-          recommendations: deepData.recommendations,
-          health: { 
-            overallScore: 75, 
-            status: 'STABLE', 
-            domains: { 
-              revenue: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
-              pipeline: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
-              operations: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] }, 
-              goals: { score: 75, status: 'STABLE', weight: 1, rationale: '', factors: [] } 
-            },
-            summary: 'Stable',
-            evaluatedAt: new Date()
-          },
-          observations: { verifiedFacts: [], observations: [], hypotheses: [] },
-          decisions: deepData.decisions as any,
-          forecasts: deepData.forecasts as any,
-          actionPlans: deepData.actionPlans as any,
-          learningSignals: [],
-          recentLearningSignals: [],
-        });
-      }
-
+      
       return {
         // Omitting operatingState and valueSynthesis for pure deep queries unless specifically required
         briefing,
+        calculationStatus: 'DEGRADED',
+        evidence: 'INSUFFICIENT',
         ...deepData,
         refreshedAt: new Date().toISOString(),
       };
@@ -504,20 +502,33 @@ export class ExecutiveDashboardService {
     let briefing: any | null = null;
     if (operatingState.businessContext) {
       try {
-        const criticalCount = events.filter((e: any) => e.severity === 'CRITICAL').length;
+        const mappedEvents: ExecutiveEventData[] = events.map((e: any) => ({
+          ...e,
+          eventType: e.eventType as EventType,
+          domain: e.domain as EventDomain,
+          severity: e.severity as EventSeverity,
+          metadata: typeof e.metadata === 'string' ? JSON.parse(e.metadata) : e.metadata,
+          facts: typeof e.facts === 'string' ? JSON.parse(e.facts) : (e.facts || []),
+          occurredAt: e.occurredAt instanceof Date ? e.occurredAt.toISOString() : e.occurredAt,
+          createdAt: e.createdAt instanceof Date ? e.createdAt.toISOString() : e.createdAt,
+          processedAt: e.processedAt instanceof Date ? e.processedAt.toISOString() : e.processedAt,
+          resolvedAt: e.resolvedAt instanceof Date ? e.resolvedAt.toISOString() : e.resolvedAt,
+        }));
+
+        const criticalCount = mappedEvents.filter(e => e.severity === 'CRITICAL').length;
         const health = BusinessHealthEvaluator.evaluateHealth(operatingState.businessContext, {
-          activeEventCount: events.length,
+          activeEventCount: mappedEvents.length,
           criticalEventCount: criticalCount,
         });
         const observations = ExecutiveObservationEngine.synthesizeObservations(
           operatingState.businessContext,
-          events as any
+          mappedEvents
         );
 
         // Pass canonical recentLearningSignals without 'as any'
         briefing = ExecutiveBriefingEngine.generateGroundedFallback({
           context: operatingState.businessContext,
-          events: events as any,
+          events: mappedEvents,
           recommendations,
           health,
           observations,

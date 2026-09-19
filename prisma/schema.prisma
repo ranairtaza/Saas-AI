@@ -1,11 +1,11 @@
-datasource db {
-  provider = "postgresql"
-  url = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -14,116 +14,107 @@ model User {
   passwordHash           String
   name                   String?
   organizationId         String
-  organization           Organization    @relation(fields: [organizationId], references: [id])
-  role                   String          @default("MEMBER") // Enums are not supported in SQLite, using String (keeping for backward compat)
+  role                   String          @default("MEMBER")
   onboarded              Boolean         @default(false)
-  createdAt              DateTime        @default(now())
-  updatedAt              DateTime        @updatedAt
-  sessions               Session[]
-  leads                  Lead[]
-  activities             LeadActivity[]
-  createdOutreachDrafts  OutreachDraft[] @relation("DraftCreator")
-  approvedOutreachDrafts OutreachDraft[] @relation("DraftApprover")
-  enrichmentRuns         EnrichmentRun[]
   languageCode           String          @default("en")
   localeCode             String          @default("en-US")
   avatarUrl              String?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  enrichmentRuns         EnrichmentRun[]
+  leads                  Lead[]
+  activities             LeadActivity[]
+  approvedOutreachDrafts OutreachDraft[] @relation("DraftApprover")
+  createdOutreachDrafts  OutreachDraft[] @relation("DraftCreator")
+  sessions               Session[]
+  organization           Organization    @relation(fields: [organizationId], references: [id])
 }
 
 model Session {
   id           String   @id @default(uuid())
-  sessionToken String   @unique // Hashed token
+  sessionToken String   @unique
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt    DateTime
   createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Organization {
   id                           String                        @id @default(uuid())
   name                         String
-  users                        User[]
-  leads                        Lead[]
-  providerCredentials          ProviderCredential[]
-  discoveryJobs                DiscoveryJob[]
-  discoveryResults             DiscoveryResult[]
-  leadActivities               LeadActivity[]
-  apiCredits                   Int                           @default(0) // Usage system
-  billing                      OrganizationBilling?
-  creditAccount                CreditAccount?
-  creditTransactions           CreditTransaction[]
-  usageRecords                 UsageRecord[]
-  createdAt                    DateTime                      @default(now())
-  updatedAt                    DateTime                      @updatedAt
+  apiCredits                   Int                           @default(0)
   timezone                     String                        @default("UTC")
   locale                       String                        @default("en")
   country                      String?
   industry                     String?
   logoUrl                      String?
   brandColor                   String?
-  conversations                Conversation[]
-  auditLogs                    AuditLog[]
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
   aiUsageRecords               AIUsageRecord[]
-  BusinessProfile              BusinessProfile?
-  IntegrationConnection        IntegrationConnection[]
-  SyncJob                      SyncJob[]
-  BusinessMetric               BusinessMetric[]
-  MetricSnapshot               MetricSnapshot[]
-  outreachDrafts               OutreachDraft[]
-  enrichmentRuns               EnrichmentRun[]
-  enrichmentEvidence           EnrichmentEvidence[]
+  auditLogs                    AuditLog[]
   businessGoals                BusinessGoal[]
-  executiveMemories            ExecutiveMemoryEntry[]
-  executiveRecommendations     ExecutiveRecommendation[]
-  executiveEvents              ExecutiveEvent[]
-  executiveBriefings           ExecutiveBriefingRecord[]
-  executiveOutcomes            ExecutiveOutcome[]
-  governancePolicy             ExecutiveGovernancePolicy?
-  decisions                    ExecutiveDecision[]
-  learningSignals              ExecutiveLearningSignal[]
-  executiveForecasts           ExecutiveForecast[]
-  actionPlans                  ExecutiveActionPlan[]
-  executiveOutcomeAttributions ExecutiveOutcomeAttribution[]
   businessInsights             BusinessInsight[]
+  BusinessMetric               BusinessMetric[]
+  BusinessProfile              BusinessProfile?
+  conversations                Conversation[]
+  creditAccount                CreditAccount?
+  creditTransactions           CreditTransaction[]
+  discoveryJobs                DiscoveryJob[]
+  discoveryResults             DiscoveryResult[]
+  enrichmentEvidence           EnrichmentEvidence[]
+  enrichmentRuns               EnrichmentRun[]
+  actionPlans                  ExecutiveActionPlan[]
+  executiveBriefings           ExecutiveBriefingRecord[]
+  decisions                    ExecutiveDecision[]
+  executiveEvents              ExecutiveEvent[]
+  executiveForecasts           ExecutiveForecast[]
+  governancePolicy             ExecutiveGovernancePolicy?
+  learningSignals              ExecutiveLearningSignal[]
+  executiveMemories            ExecutiveMemoryEntry[]
+  executiveOutcomes            ExecutiveOutcome[]
+  executiveOutcomeAttributions ExecutiveOutcomeAttribution[]
+  executiveRecommendations     ExecutiveRecommendation[]
+  IntegrationConnection        IntegrationConnection[]
+  leads                        Lead[]
+  leadActivities               LeadActivity[]
+  MetricSnapshot               MetricSnapshot[]
+  billing                      OrganizationBilling?
+  outreachDrafts               OutreachDraft[]
+  providerCredentials          ProviderCredential[]
+  SyncJob                      SyncJob[]
   systemTelemetryEvents        SystemTelemetryEvent[]
+  usageRecords                 UsageRecord[]
+  users                        User[]
 }
 
 model Lead {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-
-  // Discovered Info
-  companyName  String
-  domain       String?
-  contactName  String?
-  contactEmail String?
-  contactTitle String?
-  phone        String?
-  location     String?
-  source       String?
-  notes        String?
-
-  // Enrichment & AI Qualification
-  enrichmentData String? // Raw data from external providers (Stored as JSON string for SQLite)
-
-  score     Int? // Generic normalized score (0-100)
-  scoreType String? @default("RULE_BASED") // RULE_BASED or AI
-
-  aiScore   Int? // Reserved for future AI-generated score
-  aiSummary String? // AI justification for the score
-
-  status String @default("DISCOVERED") // Enums are not supported in SQLite, using String
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id                 String               @id @default(uuid())
+  organizationId     String
+  companyName        String
+  domain             String?
+  contactName        String?
+  contactEmail       String?
+  contactTitle       String?
+  phone              String?
+  location           String?
+  source             String?
+  notes              String?
+  enrichmentData     String?
+  score              Int?
+  scoreType          String?              @default("RULE_BASED")
+  aiScore            Int?
+  aiSummary          String?
+  status             String               @default("DISCOVERED")
   ownerId            String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  enrichmentEvidence EnrichmentEvidence[]
+  enrichmentRuns     EnrichmentRun[]
+  organization       Organization         @relation(fields: [organizationId], references: [id])
   owner              User?                @relation(fields: [ownerId], references: [id])
   activities         LeadActivity[]
   outreachDrafts     OutreachDraft[]
-  enrichmentRuns     EnrichmentRun[]
-  enrichmentEvidence EnrichmentEvidence[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -134,16 +125,16 @@ model Lead {
 model LeadActivity {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   leadId         String
-  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  userId         String? // The user who performed the action
-  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
-  type           String // 'NOTE', 'STATUS_CHANGE', 'ASSIGNMENT', 'SYSTEM'
+  userId         String?
+  type           String
   content        String
   oldValue       String?
   newValue       String?
   createdAt      DateTime     @default(now())
+  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id])
 
   @@index([leadId])
   @@index([organizationId, createdAt])
@@ -152,31 +143,30 @@ model LeadActivity {
 model ProviderCredential {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
   provider       String
   encryptedKey   String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([organizationId, provider])
   @@index([organizationId])
 }
 
 model DiscoveryJob {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  status         String       @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED, CANCELLED
-  criteria       String // JSON string of TargetCriteria
-  progress       Int          @default(0)
-  total          Int          @default(0)
-  processed      Int          @default(0)
+  status         String            @default("QUEUED")
+  criteria       String
+  progress       Int               @default(0)
+  total          Int               @default(0)
+  processed      Int               @default(0)
   error          String?
   startedAt      DateTime?
   completedAt    DateTime?
-  createdAt      DateTime     @default(now())
-
-  results DiscoveryResult[]
+  createdAt      DateTime          @default(now())
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  results        DiscoveryResult[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -184,46 +174,40 @@ model DiscoveryJob {
 }
 
 model DiscoveryResult {
-  id             String       @id @default(uuid())
-  discoveryJobId String
-  job            DiscoveryJob @relation(fields: [discoveryJobId], references: [id], onDelete: Cascade)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-
-  provider         String
-  providerRecordId String?
-
-  companyName  String
-  domain       String?
-  contactName  String?
-  contactEmail String?
-  contactTitle String?
-  phone        String?
-  location     String?
-
-  metadata           String? // Raw/normalized metadata (JSON string)
+  id                 String       @id @default(uuid())
+  discoveryJobId     String
+  organizationId     String
+  provider           String
+  providerRecordId   String?
+  companyName        String
+  domain             String?
+  contactName        String?
+  contactEmail       String?
+  contactTitle       String?
+  phone              String?
+  location           String?
+  metadata           String?
   score              Int?
   verificationStatus String?
-
-  createdAt DateTime @default(now())
+  createdAt          DateTime     @default(now())
+  job                DiscoveryJob @relation(fields: [discoveryJobId], references: [id], onDelete: Cascade)
+  organization       Organization @relation(fields: [organizationId], references: [id])
 
   @@index([organizationId])
   @@index([discoveryJobId])
 }
-
-// --- PHASE 7 BILLING MODELS ---
 
 model Plan {
   id              String                @id @default(uuid())
   name            String
   slug            String                @unique
   description     String?
-  monthlyPrice    Int // in cents
+  monthlyPrice    Int
   monthlyCredits  Int
   active          Boolean               @default(true)
   stripePriceId   String?               @unique
-  features        String? // JSON string of feature flags
-  limits          String? // JSON string of limits
+  features        String?
+  limits          String?
   billingInterval String                @default("monthly")
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
@@ -233,9 +217,7 @@ model Plan {
 model OrganizationBilling {
   id                   String       @id @default(uuid())
   organizationId       String       @unique
-  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   planId               String
-  plan                 Plan         @relation(fields: [planId], references: [id])
   stripeCustomerId     String?      @unique
   stripeSubscriptionId String?      @unique
   subscriptionStatus   String       @default("ACTIVE")
@@ -244,6 +226,8 @@ model OrganizationBilling {
   cancelAtPeriodEnd    Boolean      @default(false)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan                 Plan         @relation(fields: [planId], references: [id])
 
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
@@ -252,26 +236,26 @@ model OrganizationBilling {
 model CreditAccount {
   id               String       @id @default(uuid())
   organizationId   String       @unique
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   availableBalance Int          @default(0)
   reservedBalance  Int          @default(0)
   lifetimeGranted  Int          @default(0)
   lifetimeConsumed Int          @default(0)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model CreditTransaction {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   amount         Int
-  type           String // GRANT, RESERVE, CONSUME, REFUND, ADJUSTMENT
-  referenceType  String? // e.g., 'DISCOVERY_JOB', 'SUBSCRIPTION_GRANT'
+  type           String
+  referenceType  String?
   referenceId    String?
   description    String?
   idempotencyKey String?      @unique
   createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([referenceType, referenceId])
@@ -280,13 +264,13 @@ model CreditTransaction {
 model UsageRecord {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   discoveryJobId String?
   provider       String?
   operation      String
   credits        Int
   metadata       String?
   createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([discoveryJobId])
@@ -296,30 +280,28 @@ model WebhookEvent {
   id            String   @id @default(uuid())
   stripeEventId String   @unique
   eventType     String
-  status        String   @default("PROCESSED") // PROCESSED, FAILED
+  status        String   @default("PROCESSED")
   error         String?
   createdAt     DateTime @default(now())
 }
 
-// --- PHASE 15 AI MODELS ---
-
 model AuditLog {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String?
   sessionId      String?
   conversationId String?
   action         String
   resource       String?
   resourceId     String?
-  input          String? // JSON sanitized
-  output         String? // JSON sanitized
+  input          String?
+  output         String?
   ipAddress      String?
   userAgent      String?
-  status         String // SUCCESS | FAILURE | REJECTED
-  riskLevel      String // READ | LOW_RISK | SENSITIVE
+  status         String
+  riskLevel      String
   createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
@@ -329,15 +311,15 @@ model AuditLog {
 model Conversation {
   id             String          @id @default(uuid())
   organizationId String
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
   title          String?
-  channel        String          @default("web") // web|mobile|voice|api
+  channel        String          @default("web")
   status         String          @default("active")
-  messages       Message[]
-  pendingActions PendingAction[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages       Message[]
+  pendingActions PendingAction[]
 
   @@index([organizationId, userId])
 }
@@ -345,16 +327,16 @@ model Conversation {
 model Message {
   id             String       @id @default(uuid())
   conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  role           String // user|assistant|system|tool
+  role           String
   content        String
-  toolCall       String? // JSON string
-  toolResult     String? // JSON string
+  toolCall       String?
+  toolResult     String?
   audioUrl       String?
   inputTokens    Int?
   outputTokens   Int?
   latencyMs      Int?
   createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
 }
@@ -365,19 +347,19 @@ model PendingAction {
   requestingUserId String
   approvingUserId  String?
   conversationId   String
-  conversation     Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  actionType       String // e.g. LOW_RISK | SENSITIVE
+  actionType       String
   actionName       String
-  actionArgs       String // JSON string
+  actionArgs       String
   humanDescription String
-  riskLevel        String // READ_ONLY | LOW | MEDIUM | HIGH | CRITICAL
+  riskLevel        String
   executionResult  String?
   failureReason    String?
   idempotencyKey   String            @unique
-  status           String            @default("WAITING") // WAITING, APPROVED, REJECTED, EXECUTED, FAILED, EXPIRED, CANCELLED
+  status           String            @default("WAITING")
   expiresAt        DateTime
   createdAt        DateTime          @default(now())
   outcome          ExecutiveOutcome?
+  conversation     Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([conversationId, status])
@@ -386,61 +368,57 @@ model PendingAction {
 model AIUsageRecord {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String
-  provider       String // e.g., 'gemini'
-  model          String // e.g., 'gemini-1.5-pro'
-  requestType    String // e.g., 'chat'
+  provider       String
+  model          String
+  requestType    String
   inputTokens    Int?
   outputTokens   Int?
   createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 17 BUSINESS DATA LAYER ---
-
 model BusinessProfile {
   id                  String       @id @default(uuid())
   organizationId      String       @unique
-  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   industry            String?
-  businessModel       String?
-  targetMarket        String?
-  operatingPriorities String?
   businessName        String
   timezone            String       @default("UTC")
   currency            String       @default("USD")
   locale              String       @default("en-US")
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
+  businessModel       String?
+  operatingPriorities String?
+  targetMarket        String?
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
 
 model Integration {
-  id        String   @id @default(uuid())
-  provider  String   @unique
-  name      String
-  type      String
-  createdAt DateTime @default(now())
-
+  id          String                  @id @default(uuid())
+  provider    String                  @unique
+  name        String
+  type        String
+  createdAt   DateTime                @default(now())
   connections IntegrationConnection[]
 }
 
 model IntegrationConnection {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integrationId  String
-  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
-  status         String       @default("ACTIVE") // ACTIVE, FAILING, DISCONNECTED, EXPIRED
+  status         String       @default("ACTIVE")
   lastSyncAt     DateTime?
   lastError      String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-
-  syncJobs SyncJob[]
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  syncJobs       SyncJob[]
 
   @@unique([organizationId, integrationId])
   @@index([organizationId])
@@ -449,20 +427,20 @@ model IntegrationConnection {
 model SyncJob {
   id                      String                @id @default(uuid())
   organizationId          String
-  organization            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integrationConnectionId String
-  integrationConnection   IntegrationConnection @relation(fields: [integrationConnectionId], references: [id], onDelete: Cascade)
-  status                  String                @default("QUEUED") // QUEUED, RUNNING, RETRYING, COMPLETED, FAILED, PARTIAL
-  trigger                 String                @default("SYSTEM") // MANUAL, CRON, WEBHOOK, SYSTEM
+  status                  String                @default("QUEUED")
   startedAt               DateTime?
   completedAt             DateTime?
-  durationMs              Int?
   recordsProcessed        Int                   @default(0)
-  retryCount              Int                   @default(0)
-  errorCode               String? // AUTH_ERROR, RATE_LIMIT, TIMEOUT, PROVIDER_ERROR, NETWORK_ERROR, VALIDATION_ERROR, DATABASE_ERROR, UNKNOWN
   errorMessage            String?
   createdAt               DateTime              @default(now())
+  durationMs              Int?
+  errorCode               String?
+  retryCount              Int                   @default(0)
+  trigger                 String                @default("SYSTEM")
   updatedAt               DateTime              @updatedAt
+  integrationConnection   IntegrationConnection @relation(fields: [integrationConnectionId], references: [id], onDelete: Cascade)
+  organization            Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([integrationConnectionId])
@@ -472,18 +450,17 @@ model SyncJob {
 }
 
 model BusinessMetric {
-  id             String       @id @default(uuid())
+  id             String           @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   key            String
   name           String
   description    String?
-  unit           String // e.g., currency, count, percentage
-  category       String // e.g., financial, sales, production
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  snapshots MetricSnapshot[]
+  unit           String
+  category       String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  snapshots      MetricSnapshot[]
 
   @@unique([organizationId, key])
   @@index([organizationId])
@@ -492,26 +469,23 @@ model BusinessMetric {
 model MetricSnapshot {
   id             String         @id @default(uuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   metricId       String
-  metric         BusinessMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
   timestamp      DateTime
   value          Float
-  source         String // e.g., 'stripe', 'csv_import', 'calculated'
+  source         String
   createdAt      DateTime       @default(now())
+  metric         BusinessMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, timestamp])
   @@index([organizationId, metricId, timestamp])
 }
 
-// --- PHASE 18 EXECUTIVE INTELLIGENCE ---
-
 model BusinessInsight {
   id               String       @id @default(uuid())
   organizationId   String
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  type             String // ANOMALY | HEALTH_CHANGE | PERFORMANCE_CHANGE | INTEGRATION_FAILURE | OPERATIONAL_WARNING
-  severity         String // INFO | WARNING | CRITICAL
+  type             String
+  severity         String
   title            String
   summary          String
   explanation      String
@@ -519,208 +493,176 @@ model BusinessInsight {
   currentValue     Float?
   baselineValue    Float?
   changePercentage Float?
-  status           String       @default("NEW") // NEW | ACKNOWLEDGED | RESOLVED | DISMISSED
+  status           String       @default("NEW")
   fingerprint      String?      @unique
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([organizationId, severity])
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 21 OUTREACH INTELLIGENCE & DRAFT STAGING ---
-
 model OutreachDraft {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  leadId         String
-  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  subject        String
-  body           String
-  tone           String @default("CONSULTATIVE_VALUE")
-  intelligence   String // JSON stringified OutreachIntelligence
-  generationMode String // LIVE_AI | MOCK
-  contextHash    String // SHA-256 fingerprint of qualification context
-  version        Int    @default(1)
-  status         String @default("DRAFT") // GENERATING | DRAFT | EDITED | PENDING_APPROVAL | APPROVED | REJECTED | STALE | EXPIRED
-
+  id              String       @id @default(uuid())
+  organizationId  String
+  leadId          String
+  subject         String
+  body            String
+  tone            String       @default("CONSULTATIVE_VALUE")
+  intelligence    String
+  generationMode  String
+  contextHash     String
+  version         Int          @default(1)
+  status          String       @default("DRAFT")
   createdBy       String
-  creator         User    @relation("DraftCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   approvedBy      String?
-  approver        User?   @relation("DraftApprover", fields: [approvedBy], references: [id], onDelete: SetNull)
   rejectedBy      String?
   rejectionReason String?
-  pendingActionId String? @unique
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  approvedAt DateTime?
+  pendingActionId String?      @unique
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  approvedAt      DateTime?
+  approver        User?        @relation("DraftApprover", fields: [approvedBy], references: [id])
+  creator         User         @relation("DraftCreator", fields: [createdBy], references: [id])
+  lead            Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, leadId])
   @@index([organizationId, status])
   @@index([contextHash])
 }
 
-// --- PHASE 22 MULTI-SOURCE LEAD ENRICHMENT & EVIDENCE INTELLIGENCE ---
-
 model EnrichmentRun {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  leadId         String
-  lead           Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-
-  status             String @default("RUNNING") // QUEUED | RUNNING | COMPLETED | PARTIAL | FAILED | CANCELLED
-  providersRequested String // JSON array of string provider names
-  providersCompleted String // JSON array of string provider names
-
-  requestedBy String
-  user        User   @relation(fields: [requestedBy], references: [id], onDelete: Restrict)
-
-  startedAt    DateTime  @default(now())
-  completedAt  DateTime?
-  errorCode    String?
-  errorMessage String?
-
-  evidence EnrichmentEvidence[]
+  id                 String               @id @default(uuid())
+  organizationId     String
+  leadId             String
+  status             String               @default("RUNNING")
+  providersRequested String
+  providersCompleted String
+  requestedBy        String
+  startedAt          DateTime             @default(now())
+  completedAt        DateTime?
+  errorCode          String?
+  errorMessage       String?
+  evidence           EnrichmentEvidence[]
+  lead               Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [requestedBy], references: [id])
 
   @@index([organizationId, leadId])
   @@index([organizationId, status])
 }
 
 model EnrichmentEvidence {
-  id             String        @id @default(uuid())
-  organizationId String
-  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  leadId         String
-  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  runId          String
-  enrichmentRun  EnrichmentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-
-  field              String // industry | companySize | estimatedRevenue | technologies | location | contactRole | decisionMakerIdentified
-  value              String // Stringified attribute value
-  sourceType         String // WEBSITE | TECH_DETECTOR | SEARCH | DIRECTORY | API | MOCK | USER_PROVIDED | OTHER
+  id                 String        @id @default(uuid())
+  organizationId     String
+  leadId             String
+  runId              String
+  field              String
+  value              String
+  sourceType         String
   sourceUrl          String?
-  provider           String // Identifier of provider adapter (e.g. 'website-crawler', 'apollo-enrichment', 'mock-enrichment')
-  confidence         String // HIGH | MEDIUM | LOW
-  verificationStatus String    @default("VERIFIED") // VERIFIED | UNVERIFIED | CONFLICTING
-  observedAt         DateTime  @default(now())
+  provider           String
+  confidence         String
+  verificationStatus String        @default("VERIFIED")
+  observedAt         DateTime      @default(now())
   expiresAt          DateTime?
+  lead               Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  organization       Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  enrichmentRun      EnrichmentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, leadId])
   @@index([runId])
   @@index([field])
 }
 
-// --- PHASE 23 AI BUSINESS EXECUTIVE: MEMORY & DECISION INTELLIGENCE ---
-
 model BusinessGoal {
-  id             String       @id @default(uuid())
+  id             String             @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  title        String
-  kpiKey       String // maps to BusinessMetric key or standard KPI
-  targetValue  Float
-  currentValue Float  @default(0)
-  unit         String // CURRENCY | COUNT | PERCENTAGE | RATIO
-
-  startDate DateTime @default(now())
-  endDate   DateTime
-  status    String   @default("ON_TRACK") // ON_TRACK | AT_RISK | BEHIND | ACHIEVED | DRAFT | MISSED | CANCELLED
-  source       String   @default("USER_DEFINED") // USER_DEFINED | IMPORTED | SYSTEM_RECOMMENDED
-  period       String   @default("CUSTOM") // MONTH | QUARTER | YEAR | CUSTOM
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  outcomes ExecutiveOutcome[]
+  title          String
+  kpiKey         String
+  targetValue    Float
+  currentValue   Float              @default(0)
+  unit           String
+  startDate      DateTime           @default(now())
+  endDate        DateTime
+  status         String             @default("ON_TRACK")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  period         String             @default("CUSTOM")
+  source         String             @default("USER_DEFINED")
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outcomes       ExecutiveOutcome[]
 
   @@index([organizationId, status])
   @@index([organizationId, kpiKey])
 }
 
 model ExecutiveMemoryEntry {
-  id             String       @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  category       String // STRATEGY | DECISION | ANOMALY_RESOLUTION | POLICY | MARKET_INSIGHT
+  category       String
   title          String
   summary        String
-  facts          String // JSON array of strings
-  observations   String // JSON array of strings
+  facts          String
+  observations   String
   outcome        String?
-  sourceActionId String? // Reference to executed PendingAction
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  outcomeRecord ExecutiveOutcome?
+  sourceActionId String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outcomeRecord  ExecutiveOutcome?
 
   @@index([organizationId, category])
   @@index([organizationId, createdAt])
 }
 
 model ExecutiveRecommendation {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  domain           String  @default("REVENUE") // REVENUE | MARKETING | OPERATIONS | FINANCE
-  priorityScore    Int // 0-100 deterministic score
-  priorityLevel    String // CRITICAL | HIGH | MEDIUM | LOW
+  id               String            @id @default(uuid())
+  organizationId   String
+  domain           String            @default("REVENUE")
+  priorityScore    Int
+  priorityLevel    String
   title            String
   executiveSummary String
-  reasoning        String // JSON stringified facts, observations, hypotheses
+  reasoning        String
   expectedImpact   String
-  confidence       String // HIGH | MEDIUM | LOW
-  actionProposal   String // JSON stringified proposed tool and args
-  status           String  @default("ACTIVE") // ACTIVE | PROPOSED | APPROVED | DISMISSED | EXPIRED
-  pendingActionId  String? @unique
-
-  createdAt DateTime  @default(now())
-  expiresAt DateTime?
-
-  outcome ExecutiveOutcome?
+  confidence       String
+  actionProposal   String
+  status           String            @default("ACTIVE")
+  pendingActionId  String?           @unique
+  createdAt        DateTime          @default(now())
+  expiresAt        DateTime?
+  outcome          ExecutiveOutcome?
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([organizationId, priorityLevel])
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 24 AI BUSINESS EXECUTIVE: PROACTIVE OBSERVATION & BRIEFING ---
-
 model ExecutiveEvent {
   id             String       @id @default(uuid())
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  eventType String // REVENUE_PACING_LAG | PIPELINE_VELOCITY_DROP | UNASSIGNED_HIGH_VALUE_LEAD | GOAL_AT_RISK | GOAL_BEHIND | ENRICHMENT_CONFLICT | HIGH_VALUE_LEAD_DISCOVERED | PENDING_ACTION_APPROVED | PENDING_ACTION_REJECTED
-  domain    String // REVENUE | MARKETING | OPERATIONS | FINANCE | CUSTOMER_SUCCESS | GOVERNANCE
-  severity  String // INFO | LOW | MEDIUM | HIGH | CRITICAL
-
-  title   String
-  summary String
-
-  sourceTable    String // leads | business_goals | business_metrics | enrichment_evidence | pending_actions
+  eventType      String
+  domain         String
+  severity       String
+  title          String
+  summary        String
+  sourceTable    String
   sourceRecordId String?
-
-  facts    String // JSON stringified array of grounded facts
-  metadata String? // JSON stringified metadata for context
-
-  fingerprint String? // Stable deduplication fingerprint
-
-  occurredAt DateTime
-  createdAt  DateTime @default(now())
-
-  processed   Boolean   @default(false)
-  processedAt DateTime?
-  resolved    Boolean   @default(false)
-  resolvedAt  DateTime?
+  facts          String
+  metadata       String?
+  fingerprint    String?
+  occurredAt     DateTime
+  createdAt      DateTime     @default(now())
+  processed      Boolean      @default(false)
+  processedAt    DateTime?
+  resolved       Boolean      @default(false)
+  resolvedAt     DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, occurredAt])
   @@index([organizationId, eventType])
@@ -730,86 +672,69 @@ model ExecutiveEvent {
 }
 
 model ExecutiveBriefingRecord {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  healthScore        Int // 0-100 composite score
-  healthSummary      String // JSON string of domain health breakdown
+  id                 String       @id @default(uuid())
+  organizationId     String
+  healthScore        Int
+  healthSummary      String
   executiveSummary   String
-  topPriorities      String // JSON string array of top priority summaries
-  keyChanges         String // JSON string array of what changed
-  risks              String // JSON string array of risks
-  opportunities      String // JSON string array of opportunities
-  recommendedActions String // JSON string array of recommended action summaries
-  supportingFacts    String // JSON string array of verified facts
-  observations       String? // JSON string of observations
-  hypotheses         String? // JSON string of hypotheses
-
-  generatedBy String // "AI" or "DETERMINISTIC_FALLBACK"
-  createdAt   DateTime @default(now())
+  topPriorities      String
+  keyChanges         String
+  risks              String
+  opportunities      String
+  recommendedActions String
+  supportingFacts    String
+  observations       String?
+  hypotheses         String?
+  generatedBy        String
+  createdAt          DateTime     @default(now())
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 25 AI BUSINESS EXECUTIVE: OUTCOME INTELLIGENCE & LEARNING LOOP ---
-
 model ExecutiveOutcome {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  recommendationId String                  @unique
-  recommendation   ExecutiveRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
-
-  pendingActionId String?        @unique
-  pendingAction   PendingAction? @relation(fields: [pendingActionId], references: [id], onDelete: SetNull)
-
-  domain       String // REVENUE | MARKETING | OPERATIONS | FINANCE
-  targetKpiKey String? // e.g. "unassigned_leads", "revenue_mrr", "qualified_leads"
-  targetGoalId String?
-  targetGoal   BusinessGoal? @relation(fields: [targetGoalId], references: [id], onDelete: SetNull)
-
-  status                String    @default("MEASURING") // MEASURING | EVALUATING | MEASURED | CANCELLED | EXPIRED
-  measurementWindowDays Int       @default(7)
-  startedAt             DateTime  @default(now())
+  id                    String                       @id @default(uuid())
+  organizationId        String
+  recommendationId      String                       @unique
+  pendingActionId       String?                      @unique
+  domain                String
+  targetKpiKey          String?
+  targetGoalId          String?
+  status                String                       @default("MEASURING")
+  measurementWindowDays Int                          @default(7)
+  startedAt             DateTime                     @default(now())
   evaluationDueAt       DateTime
   evaluatedAt           DateTime?
-
-  beforeSnapshot String // JSON stringified TelemetrySnapshot
-  afterSnapshot  String? // JSON stringified TelemetrySnapshot
-
-  decisionId          String?
-  expectedValue       Float?
-  actualValue         Float?
-  variance            Float?
-  variancePercentage  Float?
-  varianceStatus      String? // POSITIVE | NEUTRAL | NEGATIVE | INCONCLUSIVE
-  confidence          String? // HIGH | MEDIUM | LOW | INSUFFICIENT
-  effectivenessStatus String? // SUCCESS | PARTIAL_SUCCESS | NEUTRAL | UNDERPERFORMED | FAILED | INCONCLUSIVE
-
-  baselineValue    Float?
-  finalValue       Float?
-  deltaValue       Float?
-  deltaPercentage  Float?
-  healthScoreDelta Int?
-
-  resultStatus         String? // SUCCESS | PARTIAL | NEUTRAL | NEGATIVE | INCONCLUSIVE
-  attributionLevel     String? // DIRECT_CAUSAL | CORRELATED | INCONCLUSIVE | NONE
-  attributionRationale String?
-
-  hypothesisStatus String? // SUPPORTED | PARTIALLY_SUPPORTED | INCONCLUSIVE | REFUTED
-  falsified        Boolean @default(false)
-
-  effectivenessScore Int? // 0-100 deterministic calculation
-
-  executiveMemoryId String?               @unique
-  executiveMemory   ExecutiveMemoryEntry? @relation(fields: [executiveMemoryId], references: [id], onDelete: SetNull)
-
-  attribution ExecutiveOutcomeAttribution?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  beforeSnapshot        String
+  afterSnapshot         String?
+  decisionId            String?
+  expectedValue         Float?
+  actualValue           Float?
+  variance              Float?
+  variancePercentage    Float?
+  varianceStatus        String?
+  confidence            String?
+  effectivenessStatus   String?
+  baselineValue         Float?
+  finalValue            Float?
+  deltaValue            Float?
+  deltaPercentage       Float?
+  healthScoreDelta      Int?
+  resultStatus          String?
+  attributionLevel      String?
+  attributionRationale  String?
+  hypothesisStatus      String?
+  falsified             Boolean                      @default(false)
+  effectivenessScore    Int?
+  executiveMemoryId     String?                      @unique
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  executiveMemory       ExecutiveMemoryEntry?        @relation(fields: [executiveMemoryId], references: [id])
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pendingAction         PendingAction?               @relation(fields: [pendingActionId], references: [id])
+  recommendation        ExecutiveRecommendation      @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  targetGoal            BusinessGoal?                @relation(fields: [targetGoalId], references: [id])
+  attribution           ExecutiveOutcomeAttribution?
 
   @@index([organizationId, status])
   @@index([organizationId, resultStatus])
@@ -817,66 +742,53 @@ model ExecutiveOutcome {
   @@index([organizationId, domain])
 }
 
-// --- PHASE 27 AI BUSINESS EXECUTIVE: GOVERNANCE & POLICY ENGINE ---
-
 model ExecutiveGovernancePolicy {
-  id             String       @id @default(uuid())
-  organizationId String       @unique
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  riskTolerance                     String @default("MEDIUM") // LOW | MEDIUM | HIGH
-  maxFinancialExposure              Float  @default(10000.0) // Maximum exposure in base currency
-  maxLeadCapacityPerRep             Int    @default(50) // Operational capacity threshold
-  restrictedDomains                 String @default("[]") // JSON string array of restricted domains
-  restrictedActions                 String @default("[]") // JSON string array of restricted action tool names
-  minEvidenceConfidence             Int    @default(70) // 0-100 minimum required confidence
-  requireExecutiveApprovalAboveRisk String @default("HIGH") // LOW | MEDIUM | HIGH | CRITICAL
-  policyVersion                     Int    @default(1)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                                String       @id @default(uuid())
+  organizationId                    String       @unique
+  riskTolerance                     String       @default("MEDIUM")
+  maxFinancialExposure              Float        @default(10000.0)
+  maxLeadCapacityPerRep             Int          @default(50)
+  restrictedDomains                 String       @default("[]")
+  restrictedActions                 String       @default("[]")
+  minEvidenceConfidence             Int          @default(70)
+  requireExecutiveApprovalAboveRisk String       @default("HIGH")
+  policyVersion                     Int          @default(1)
+  createdAt                         DateTime     @default(now())
+  updatedAt                         DateTime     @updatedAt
+  organization                      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
 
-// --- PHASE 28 AI BUSINESS EXECUTIVE: DECISION & APPROVAL ORCHESTRATION ---
-
 model ExecutiveDecision {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  strategyId       String?
-  recommendationId String?
-  pendingActionId  String?
-
-  title             String
-  description       String
-  domain            String // REVENUE | MARKETING | OPERATIONS | FINANCE | SALES | CUSTOMER | GOVERNANCE
-  decisionType      String // STRATEGIC | OPERATIONAL | FINANCIAL | RISK | ESCALATION
-  status            String @default("PENDING") // PENDING | APPROVED | REJECTED | DEFERRED | EXPIRED | CANCELLED | BLOCKED
-  priority          String @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
-  requiredAuthority String @default("MANAGER") // NONE | MANAGER | EXECUTIVE | EXPLICIT_HUMAN
-
-  governanceVerdict     String // ALLOWED | ALLOWED_WITH_WARNING | REQUIRES_ESCALATION | BLOCKED | INSUFFICIENT_EVIDENCE
+  id                    String                   @id @default(uuid())
+  organizationId        String
+  strategyId            String?
+  recommendationId      String?
+  pendingActionId       String?
+  title                 String
+  description           String
+  domain                String
+  decisionType          String
+  status                String                   @default("PENDING")
+  priority              String                   @default("MEDIUM")
+  requiredAuthority     String                   @default("MANAGER")
+  governanceVerdict     String
   governanceExplanation String
-  policyVersion         Int    @default(1)
-
-  riskScore          Int   @default(0)
-  financialExposure  Float @default(0.0)
-  evidenceConfidence Int   @default(0)
-
-  requestedByUserId String?
-  decidedByUserId   String?
-  decisionReason    String?
-  metadata          String? // JSON stringified context & proposed action args
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  decidedAt DateTime?
-  expiresAt DateTime?
-
-  auditHistory ExecutiveDecisionAudit[]
+  policyVersion         Int                      @default(1)
+  riskScore             Int                      @default(0)
+  financialExposure     Float                    @default(0.0)
+  evidenceConfidence    Int                      @default(0)
+  requestedByUserId     String?
+  decidedByUserId       String?
+  decisionReason        String?
+  metadata              String?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  decidedAt             DateTime?
+  expiresAt             DateTime?
+  organization          Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  auditHistory          ExecutiveDecisionAudit[]
 
   @@index([organizationId, status])
   @@index([organizationId, priority])
@@ -887,43 +799,40 @@ model ExecutiveDecision {
 model ExecutiveDecisionAudit {
   id             String            @id @default(uuid())
   decisionId     String
-  decision       ExecutiveDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
   organizationId String
   actorUserId    String?
-  event          String // DECISION_CREATED | DECISION_VIEWED | DECISION_APPROVED | DECISION_REJECTED | DECISION_DEFERRED | DECISION_EXPIRED | DECISION_CANCELLED | GOVERNANCE_BLOCKED
+  event          String
   fromStatus     String?
   toStatus       String
   reason         String?
   policyVersion  Int               @default(1)
-  metadata       String? // JSON string
+  metadata       String?
   createdAt      DateTime          @default(now())
+  decision       ExecutiveDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
 
   @@index([decisionId, createdAt])
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 29 AI BUSINESS EXECUTIVE: LEARNING SIGNALS & HISTORICAL INTELLIGENCE ---
-
 model ExecutiveLearningSignal {
   id                 String       @id @default(uuid())
   organizationId     String
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
   decisionId         String?
   outcomeId          String?
-  domain             String // REVENUE | MARKETING | OPERATIONS | FINANCE | SALES | GOVERNANCE
+  domain             String
   strategyKey        String?
   metric             String
   expectedValue      Float?
   actualValue        Float?
   variance           Float?
   variancePercentage Float?
-  varianceStatus     String // POSITIVE | NEUTRAL | NEGATIVE | INCONCLUSIVE
-  effectiveness      String // SUCCESS | PARTIAL_SUCCESS | NEUTRAL | UNDERPERFORMED | FAILED | INCONCLUSIVE
-  confidence         String // HIGH | MEDIUM | LOW | INSUFFICIENT
-  hypothesisResult   String // SUPPORTED | PARTIALLY_SUPPORTED | REFUTED | INCONCLUSIVE
-  evidence           String? // Grounded explanation & telemetry evidence
-  createdAt          DateTime @default(now())
+  varianceStatus     String
+  effectiveness      String
+  confidence         String
+  hypothesisResult   String
+  evidence           String?
+  createdAt          DateTime     @default(now())
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, domain])
   @@index([organizationId, varianceStatus])
@@ -931,33 +840,29 @@ model ExecutiveLearningSignal {
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 30 AI BUSINESS EXECUTIVE: PREDICTIVE INTELLIGENCE & FORECASTING ---
-
 model ExecutiveForecast {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  sourceType      String // TELEMETRY | STRATEGY_SCENARIO | OUTCOME_LEARNING | GOAL
-  sourceId        String? // Reference ID if derived from a specific strategy/decision/goal
-  domain          String // REVENUE | PIPELINE | SALES | OPERATIONS | FINANCE | MARKETING | GOVERNANCE
-  metric          String // e.g. revenueMTD, pipelineValue, qualifiedLeadsCount, unassignedHighPriorityLeads, businessHealthScore
+  id              String       @id @default(uuid())
+  organizationId  String
+  sourceType      String
+  sourceId        String?
+  domain          String
+  metric          String
   currentValue    Float
   forecastValue   Float
-  forecastHorizon String // SHORT_TERM | MEDIUM_TERM | LONG_TERM
-  horizonDays     Int     @default(30)
+  forecastHorizon String
+  horizonDays     Int          @default(30)
   lowerBound      Float
   upperBound      Float
-  confidence      String // HIGH | MEDIUM | LOW | INSUFFICIENT
-  direction       String // INCREASING | DECREASING | STABLE | VOLATILE
-  scenarioType    String  @default("BASELINE") // BASELINE | OPTIMISTIC | CONSERVATIVE
-  evidence        String // Grounded explanation & telemetry evidence
-  assumptions     String  @default("[]") // JSON string array of assumptions
-  riskSignals     String  @default("[]") // JSON string array of predictive risk signals
-  metadata        String? // Optional additional context JSON
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  confidence      String
+  direction       String
+  scenarioType    String       @default("BASELINE")
+  evidence        String
+  assumptions     String       @default("[]")
+  riskSignals     String       @default("[]")
+  metadata        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, domain])
   @@index([organizationId, metric])
@@ -966,53 +871,43 @@ model ExecutiveForecast {
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 31 AI BUSINESS EXECUTIVE: ACTION PLANNING & HUMAN-GATED EXECUTION ---
-
 model ExecutiveActionPlan {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  decisionId       String?
-  forecastId       String?
-  learningSignalId String?
-
-  actionType  String // FOLLOW_UP_LEAD | CONTACT_CUSTOMER | REVIEW_PIPELINE | INVESTIGATE_REVENUE_DROP | ALLOCATE_CAPACITY | REVIEW_MARKETING_PERFORMANCE | REVIEW_OPERATIONAL_RISK | REVIEW_STRATEGY | REQUEST_HUMAN_DECISION
-  domain      String // REVENUE | MARKETING | OPERATIONS | FINANCE | SALES | CUSTOMER | GOVERNANCE
-  title       String
-  description String
-  whyNow      String // Grounded explanation for urgency/timing
-  evidence    String @default("[]") // JSON string array of grounded citations
-
-  expectedImpact       String // Description of projection or INSUFFICIENT_EVIDENCE
-  expectedMetricChange Float?
-  targetMetric         String?
-  timeHorizon          String // SHORT_TERM | MEDIUM_TERM | LONG_TERM
-  expectedCost         Float   @default(0.0)
-
-  riskLevel     String @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
-  urgency       String @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
-  priority      String @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
-  priorityScore Int    @default(50) // Deterministic 0-100 score
-  confidence    String @default("MEDIUM") // HIGH | MEDIUM | LOW | INSUFFICIENT
-
-  governanceVerdict     String // ALLOWED | ALLOWED_WITH_WARNING | REQUIRES_ESCALATION | BLOCKED | INSUFFICIENT_EVIDENCE
+  id                    String       @id @default(uuid())
+  organizationId        String
+  decisionId            String?
+  forecastId            String?
+  learningSignalId      String?
+  actionType            String
+  domain                String
+  title                 String
+  description           String
+  whyNow                String
+  evidence              String       @default("[]")
+  expectedImpact        String
+  expectedMetricChange  Float?
+  targetMetric          String?
+  timeHorizon           String
+  expectedCost          Float        @default(0.0)
+  riskLevel             String       @default("MEDIUM")
+  urgency               String       @default("MEDIUM")
+  priority              String       @default("MEDIUM")
+  priorityScore         Int          @default(50)
+  confidence            String       @default("MEDIUM")
+  governanceVerdict     String
   governanceExplanation String
-  requiredAuthority     String @default("MANAGER") // NONE | MANAGER | EXECUTIVE | EXPLICIT_HUMAN
-
-  status          String  @default("PROPOSED") // PROPOSED | GOVERNANCE_REVIEW | PENDING_APPROVAL | APPROVED | REJECTED | DEFERRED | EXECUTING | COMPLETED | CANCELLED | EXPIRED | BLOCKED
-  idempotencyKey  String  @unique
-  dependencies    String  @default("[]") // JSON string array of dependency action IDs
-  actionPayload   String? // JSON string of tool parameters for ActionEngine bridge
-  pendingActionId String? // ID of staged ActionEngine PendingAction once approved
-
-  approvedByUserId String?
-  approvedAt       DateTime?
-  rejectionReason  String?
-  expiresAt        DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  requiredAuthority     String       @default("MANAGER")
+  status                String       @default("PROPOSED")
+  idempotencyKey        String       @unique
+  dependencies          String       @default("[]")
+  actionPayload         String?
+  pendingActionId       String?
+  approvedByUserId      String?
+  approvedAt            DateTime?
+  rejectionReason       String?
+  expiresAt             DateTime?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([organizationId, priority])
@@ -1020,50 +915,36 @@ model ExecutiveActionPlan {
   @@index([organizationId, createdAt])
 }
 
-// --- PHASE 35 AI BUSINESS EXECUTIVE: OUTCOME ATTRIBUTION ---
-
 model ExecutiveOutcomeAttribution {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  outcomeId String           @unique
-  outcome   ExecutiveOutcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
-
-  decisionId      String?
-  actionPlanId    String?
-  pendingActionId String?
-
-  // Evidence & Causal Tracking
-  attributionStatus String // DIRECT_CAUSAL | CORRELATED | INCONCLUSIVE | INSUFFICIENT_EVIDENCE
-  confidence        String // HIGH | MEDIUM | LOW | INSUFFICIENT
-
-  // Deterministic metrics for the specific action
-  targetMetric        String
-  baselineValue       Float?
-  expectedImpactValue Float?
-  actualDeltaValue    Float?
-
-  // Explanations
+  id                   String           @id @default(uuid())
+  organizationId       String
+  outcomeId            String           @unique
+  decisionId           String?
+  actionPlanId         String?
+  pendingActionId      String?
+  attributionStatus    String
+  confidence           String
+  targetMetric         String
+  baselineValue        Float?
+  expectedImpactValue  Float?
+  actualDeltaValue     Float?
   attributionRationale String
-  confoundingFactors   String @default("[]") // JSON array of other concurrent actions/events
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  confoundingFactors   String           @default("[]")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  organization         Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  outcome              ExecutiveOutcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, attributionStatus])
   @@index([outcomeId])
 }
 
-// --- PHASE 47 SYSTEM OBSERVABILITY TELEMETRY ---
-
 model SystemTelemetryEvent {
   id             String        @id @default(uuid())
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String?
-  eventType      String        // REQUEST | ERROR | SYSTEM | SECURITY | AI | BILLING | JOB
-  severity       String        @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  eventType      String
+  severity       String        @default("INFO")
   route          String?
   method         String?
   statusCode     Int?
@@ -1072,12 +953,24 @@ model SystemTelemetryEvent {
   traceId        String?
   service        String        @default("api")
   message        String?
-  metadata       String?       // JSON string sanitized
+  metadata       String?
   createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, createdAt])
   @@index([statusCode, createdAt])
   @@index([route, createdAt])
   @@index([severity, createdAt])
   @@index([eventType, createdAt])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model leadmachine_metadata {
+  id          String   @id
+  application String   @default("leadmachine")
+  environment String   @default("production")
+  identity    String   @default("leadmachine")
+  created_at  DateTime @default(now())
+
+  @@map("_leadmachine_metadata")
 }
