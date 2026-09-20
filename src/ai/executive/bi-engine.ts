@@ -38,7 +38,7 @@ export interface UnifiedTelemetry {
 export class BusinessIntelligenceEngine {
   /**
    * Lightweight telemetry assembly specifically for dashboard snapshot path.
-   * Completely bypasses live CRM count queries to guarantee < 50ms latency.
+   * Bypasses live CRM count queries to reduce database load and improve response latency.
    */
   static async getSnapshotTelemetry(organizationId: string): Promise<UnifiedTelemetry> {
     const metrics = await prisma.businessMetric.findMany({
@@ -99,6 +99,18 @@ export class BusinessIntelligenceEngine {
       return { value: null, unit: 'UNKNOWN', source: 'none', freshness: 'UNKNOWN', confidence: 'UNKNOWN', conflict: false, lastUpdatedAt: null };
     };
 
+    const connections = await prisma.integrationConnection.findMany({
+      where: { organizationId },
+      include: { integration: { select: { provider: true } } }
+    }).catch(() => []);
+
+    const dataFreshness = connections.map((conn) => ({
+      provider: conn.integration.provider,
+      status: conn.status,
+      freshness: calculateFreshness(conn.lastSyncAt),
+      lastSuccessfulSyncAt: conn.lastSyncAt,
+    }));
+
     return {
       metrics: {
         revenueMTD: resolveMetric('REVENUE_MTD'),
@@ -114,7 +126,7 @@ export class BusinessIntelligenceEngine {
         pipelineValue: resolveMetric('PIPELINE_VALUE'),
       },
       recentAnomalies: [],
-      dataFreshness: []
+      dataFreshness
     };
   }
 
@@ -349,33 +361,11 @@ export class BusinessIntelligenceEngine {
     // Determine data freshness for external providers ONLY (Single bounded batch query, eliminating N+1 DB calls)
     const connections = await prisma.integrationConnection.findMany({
       where: { organizationId },
-      include: { integration: true }
-    });
-
-    const connectionIds = connections.map((c) => c.id);
-    const syncJobs = connectionIds.length > 0
-      ? await prisma.syncJob.findMany({
-          where: {
-            integrationConnectionId: { in: connectionIds },
-            status: 'COMPLETED',
-          },
-          orderBy: { completedAt: 'desc' },
-          select: {
-            integrationConnectionId: true,
-            completedAt: true,
-          },
-        })
-      : [];
-
-    const latestJobMap = new Map<string, Date>();
-    for (const job of syncJobs) {
-      if (!latestJobMap.has(job.integrationConnectionId) && job.completedAt) {
-        latestJobMap.set(job.integrationConnectionId, job.completedAt);
-      }
-    }
+      include: { integration: { select: { provider: true } } }
+    }).catch(() => []);
 
     const freshnessList = connections.map((conn) => {
-      const lastSuccessfulSyncAt = latestJobMap.get(conn.id) || null;
+      const lastSuccessfulSyncAt = conn.lastSyncAt;
       return {
         provider: conn.integration.provider,
         status: conn.status,

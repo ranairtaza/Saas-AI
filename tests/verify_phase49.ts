@@ -508,6 +508,16 @@ async function runPhase49Tests() {
     console.log('  ✅ Query boundaries mathematically verified and strictly enforced.');
   }
 
+  // -------------------------------------------------------------------------
+  // Test 13: Canonical Attention Semantics in Snapshot
+  // -------------------------------------------------------------------------
+  console.log('\nTest 13: Canonical Attention Semantics in Snapshot...');
+  {
+    const readModel = await ExecutiveDashboardService.getDashboardReadModel(organizationId, { forceRefresh: true, mode: 'snapshot' });
+    assert(readModel.topAttention === null, 'topAttention must be explicitly null in snapshot because canonical calculation requires deep construction');
+    console.log('  ✅ topAttention is explicitly null in snapshot, avoiding fabricated cheap rules.');
+  }
+
   console.log('\n✨ All Phase 49 verification tests passed successfully!');
 }
 

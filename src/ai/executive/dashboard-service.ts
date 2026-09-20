@@ -2,7 +2,7 @@
  * Phase 49: Executive Dashboard Aggregation & Read-Model Service
  *
  * Implements a strict Read-Model boundary for the Executive Command Center:
- * 1. Fast Executive Snapshot (sub-50ms read model for first-screen hero, health, opportunities, risks, attention)
+ * 1. Fast Executive Snapshot (lightweight read model for first-screen hero, health, opportunities, risks, attention)
  * 2. Deep Executive Intelligence (outcomes, recommendations, events, forecasts, decisions, action plans)
  * 3. Unified or Staged progressive loading (mode: 'snapshot' | 'deep' | 'full')
  * 4. Production-safe distributed caching via Upstash Redis with bounded in-memory fallback
@@ -146,7 +146,7 @@ export class ExecutiveDashboardService {
   /**
    * Fast First-Screen Executive Snapshot Read Model.
    * Serves the minimum data required for hero, health score, opportunities, risks, and attention.
-   * Latency target: <50ms.
+   * Latency target: Minimal bounded concurrent queries to ensure fast first-paint.
    */
   static async getExecutiveSnapshot(
     organizationId: string,
@@ -185,36 +185,34 @@ export class ExecutiveDashboardService {
         }
       }
 
-      // 3. Assemble lightweight snapshot data (Focused queries only)
+      // 3. Assemble lightweight snapshot data concurrently (Focused queries only)
       const telemetryStartMs = Date.now();
-      const telemetry = await BusinessIntelligenceEngine.getSnapshotTelemetry(organizationId).catch(() => null);
-      const telemetryElapsedMs = Date.now() - telemetryStartMs;
-
-      const decisionsStartMs = Date.now();
-      const pendingDecision = await prisma.executiveDecision.findFirst({
-        where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
-        orderBy: { priority: 'desc' },
-        select: { id: true, title: true, domain: true, priority: true, status: true },
-      }).catch(() => null);
-      
-      const pendingAction = await prisma.pendingAction.findFirst({
-        where: { organizationId, status: 'WAITING' },
-        orderBy: { createdAt: 'desc' },
-        select: { id: true, actionName: true, actionType: true, riskLevel: true, status: true },
-      }).catch(() => null);
-      
-      const [pendingDecisionsCount, pendingActionsCount] = await Promise.all([
+      const [
+        telemetry,
+        pendingDecision,
+        pendingAction,
+        pendingDecisionsCount,
+        pendingActionsCount,
+        topOpp,
+        topRiskItem
+      ] = await Promise.all([
+        BusinessIntelligenceEngine.getSnapshotTelemetry(organizationId).catch(() => null),
+        prisma.executiveDecision.findFirst({
+          where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
+          orderBy: { priority: 'desc' },
+          select: { id: true, title: true, domain: true, priority: true, status: true },
+        }).catch(() => null),
+        prisma.pendingAction.findFirst({
+          where: { organizationId, status: 'WAITING' },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, actionName: true, actionType: true, riskLevel: true, status: true },
+        }).catch(() => null),
         prisma.executiveDecision.count({
           where: { organizationId, status: { in: ['PENDING', 'DEFERRED'] } },
         }).catch(() => 0),
         prisma.pendingAction.count({
           where: { organizationId, status: 'WAITING' },
-        }).catch(() => 0)
-      ]);
-      const decisionsElapsedMs = Date.now() - decisionsStartMs;
-
-      const forecastsStartMs = Date.now();
-      const [topOpp, topRiskItem] = await Promise.all([
+        }).catch(() => 0),
         prisma.executiveForecast.findFirst({
           where: { organizationId, direction: 'INCREASING', confidence: { not: 'INSUFFICIENT' } },
           orderBy: { updatedAt: 'desc' },
@@ -226,26 +224,16 @@ export class ExecutiveDashboardService {
           select: { metric: true, domain: true, forecastValue: true, currentValue: true }
         }).catch(() => null)
       ]);
-      const forecastsElapsedMs = Date.now() - forecastsStartMs;
-
-      const attentionStartMs = Date.now();
-      const topAttentionEvent = await prisma.executiveEvent.findFirst({
-        where: { organizationId, severity: 'CRITICAL' },
-        orderBy: { occurredAt: 'desc' },
-        select: { id: true, title: true, domain: true, severity: true, occurredAt: true }
-      }).catch(() => null);
-      const attentionElapsedMs = Date.now() - attentionStartMs;
+      const queriesElapsedMs = Date.now() - telemetryStartMs;
 
       const telemetryMeasured = Boolean(telemetry?.metrics?.revenueMTD?.value != null || telemetry?.metrics?.totalLeads?.value != null);
       
-      // Evaluate health directly from telemetry (mocking the context shape needed by the evaluator)
-      const mockContext = { telemetry: telemetry || { metrics: {} }, goals: [] };
-      const healthResult = telemetryMeasured 
-        ? BusinessHealthEvaluator.evaluateHealth(mockContext as any)
-        : { overallScore: 75, status: 'STABLE', domains: {} as any };
+      const healthResult = telemetryMeasured && telemetry 
+        ? BusinessHealthEvaluator.evaluateHealth({ telemetry, goals: [] } as any)
+        : null;
 
-      const healthScore = telemetryMeasured ? healthResult.overallScore : '—';
-      const healthStatus = telemetryMeasured ? healthResult.status : 'UNRATED';
+      const healthScore = telemetryMeasured && healthResult ? healthResult.overallScore : '—';
+      const healthStatus = telemetryMeasured && healthResult ? healthResult.status : 'UNRATED';
 
       const topOpportunity = topOpp
         ? {
@@ -263,16 +251,9 @@ export class ExecutiveDashboardService {
           }
         : null;
 
-      // Deterministic attention calculation based solely on recent critical events
-      const topAttention = topAttentionEvent 
-        ? {
-            title: topAttentionEvent.title,
-            domain: topAttentionEvent.domain,
-            priority: 'CRITICAL',
-            evidence: 'Derived from recent critical executive event',
-            occurredAt: topAttentionEvent.occurredAt
-          }
-        : null;
+      // Canonical attention calculation requires heavy operating-state construction.
+      // We explicitly return null in the snapshot rather than fabricating a cheap rule.
+      const topAttention = null;
 
       const syncStatus = telemetry?.dataFreshness ?? [];
       const sourceDataThrough = syncStatus.reduce<string | null>((latest, item) => {
@@ -296,10 +277,10 @@ export class ExecutiveDashboardService {
         health: {
           overallScore: healthScore,
           status: healthStatus,
-          breakdown: telemetryMeasured ? healthResult.domains : undefined,
+          breakdown: telemetryMeasured && healthResult ? healthResult.domains : undefined,
         },
-        executiveSummary: telemetryMeasured 
-          ? 'Business operating within expected parameters.' 
+        executiveSummary: telemetryMeasured && healthResult && healthResult.overallScore >= 50
+          ? `Operating at ${healthStatus} status.` 
           : 'Awaiting sufficient telemetry to form an operational summary.',
         topOpportunity,
         topRisk,
@@ -321,10 +302,10 @@ export class ExecutiveDashboardService {
           calculationStatus: telemetryMeasured ? 'READY' : 'EMPTY',
           cacheHit: false,
           snapshot: {
-            telemetry: telemetryElapsedMs || 0,
-            decisionQueries: decisionsElapsedMs || 0,
-            forecastQueries: forecastsElapsedMs || 0,
-            attention: attentionElapsedMs || 0,
+            telemetry: queriesElapsedMs,
+            decisionQueries: 0,
+            forecastQueries: 0,
+            attention: 0,
             total: Date.now() - startMs
           }
         },
@@ -350,10 +331,10 @@ export class ExecutiveDashboardService {
         metadata: { 
           cacheHit: false, 
           durationMs: elapsed,
-          telemetryMs: telemetryElapsedMs || 0,
-          decisionQueriesMs: decisionsElapsedMs || 0,
-          forecastQueriesMs: forecastsElapsedMs || 0,
-          attentionMs: attentionElapsedMs || 0
+          telemetryMs: queriesElapsedMs,
+          decisionQueriesMs: 0,
+          forecastQueriesMs: 0,
+          attentionMs: 0
         },
       });
 
@@ -500,7 +481,12 @@ export class ExecutiveDashboardService {
 
     // Synthesize executive briefing directly from operating state with CANONICAL recentLearningSignals
     let briefing: any | null = null;
-    if (operatingState.businessContext) {
+    const telemetryMeasuredDeep = Boolean(
+      operatingState.businessContext?.telemetry?.metrics?.revenueMTD?.value != null || 
+      operatingState.businessContext?.telemetry?.metrics?.totalLeads?.value != null
+    );
+
+    if (operatingState.businessContext && telemetryMeasuredDeep) {
       try {
         const mappedEvents: ExecutiveEventData[] = events.map((e: any) => ({
           ...e,
