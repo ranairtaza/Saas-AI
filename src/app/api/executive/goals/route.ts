@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/session';
 import { GoalTracker } from '@/ai/executive/goal-tracker';
 import { z } from 'zod';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
 const CreateGoalRequestSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -48,6 +50,9 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!hasPermission(user.role, PERMISSIONS.ORG_SETTINGS)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const json = await request.json();
