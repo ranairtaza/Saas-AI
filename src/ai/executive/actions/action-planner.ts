@@ -80,7 +80,7 @@ export class ExecutiveActionPlanner {
         take: 10,
       }),
       prisma.businessGoal.findMany({
-        where: { organizationId },
+        where: { organizationId, status: { notIn: ['DRAFT', 'CANCELLED'] } },
         select: { id: true, title: true, kpiKey: true, targetValue: true, currentValue: true, status: true },
       }),
     ]);
@@ -98,8 +98,8 @@ export class ExecutiveActionPlanner {
     // --------------------------------------------------------------------------
     // CANDIDATE 1: Operational Backlog / Capacity Allocation
     // --------------------------------------------------------------------------
-    if (unassignedLeads > 0 || (opsForecast && opsForecast.direction === 'INCREASING')) {
-      const targetCount = unassignedLeads > 0 ? unassignedLeads : 5;
+    if (unassignedLeads > 0) {
+      const targetCount = unassignedLeads;
       const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
         {
           strategyId: `strat-ops-${organizationId}`,
@@ -157,7 +157,7 @@ export class ExecutiveActionPlanner {
         domain: 'OPERATIONS',
         title: `Allocate Sales Capacity for ${targetCount} High-Priority Leads`,
         description: `Immediately distribute ${targetCount} qualified prospects currently lacking assigned account executives.`,
-        whyNow: `High-priority prospects experience conversion rate decay of up to 40% if uncontacted past 48 hours.`,
+        whyNow: `${targetCount} verified high-priority leads are currently unassigned and require an explicit capacity decision.`,
         evidence: [
           { sourceType: 'TELEMETRY', metric: 'unassignedHighPriorityLeads', detail: `${targetCount} qualified leads unassigned`, value: targetCount },
           ...(opsForecast ? [{ sourceType: 'FORECAST' as const, metric: opsForecast.metric, detail: `Ops forecast: ${opsForecast.forecastValue}` }] : []),
@@ -191,10 +191,18 @@ export class ExecutiveActionPlanner {
     // --------------------------------------------------------------------------
     // CANDIDATE 2: Pipeline Review & Deal Re-engagement
     // --------------------------------------------------------------------------
-    const isPipelineRisk = pipelineForecast && (pipelineForecast.direction === 'DECREASING' || pipelineForecast.riskSignals.includes('PIPELINE_RISK'));
-    if (isPipelineRisk || activeLeadsCount > 0) {
-      const currentPipeline = pipelineForecast?.currentValue ?? (activeLeadsCount * 2500);
-      const forecastPipeline = pipelineForecast?.forecastValue ?? (currentPipeline * 0.85);
+    const isPipelineRisk = Boolean(
+      pipelineForecast &&
+      (pipelineForecast.direction === 'DECREASING' || pipelineForecast.riskSignals.includes('PIPELINE_RISK'))
+    );
+    const hasVerifiedPipelineForecast = Boolean(
+      pipelineForecast &&
+      typeof pipelineForecast.currentValue === 'number' &&
+      typeof pipelineForecast.forecastValue === 'number'
+    );
+    if (pipelineForecast && hasVerifiedPipelineForecast && (isPipelineRisk || activeLeadsCount > 0)) {
+      const currentPipeline = pipelineForecast.currentValue as number;
+      const forecastPipeline = pipelineForecast.forecastValue as number;
 
       const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
         {
@@ -254,8 +262,8 @@ export class ExecutiveActionPlanner {
         title: 'Conduct Pipeline Deal Re-engagement Review',
         description: 'Review stale pipeline opportunities with deal size exceeding $10,000 to identify stuck stages.',
         whyNow: isPipelineRisk
-          ? 'Phase 30 predictive forecast indicates pipeline contraction over the 30-day horizon.'
-          : 'Periodic pipeline velocity check to sustain quarterly revenue trajectory.',
+          ? `Verified pipeline forecast is declining from ${currentPipeline.toLocaleString()} to ${forecastPipeline.toLocaleString()}.`
+          : 'Verified pipeline forecast data is available for review.',
         evidence: [
           { sourceType: 'TELEMETRY', metric: 'pipelineValue', detail: `Current pipeline valuation: $${currentPipeline.toLocaleString()}` },
           ...(pipelineForecast ? [{ sourceType: 'FORECAST' as const, metric: 'pipelineValue', detail: `Projected pipeline: $${forecastPipeline.toLocaleString()}` }] : []),
@@ -289,12 +297,22 @@ export class ExecutiveActionPlanner {
     // --------------------------------------------------------------------------
     // CANDIDATE 3: Revenue Protection / Strategic Intervention
     // --------------------------------------------------------------------------
-    const revenueGoal = goals.find(g => g.kpiKey.toLowerCase().includes('revenue'));
-    const isRevenueAtRisk = revenueForecast?.direction === 'DECREASING' || (revenueGoal && revenueGoal.status === 'AT_RISK');
+    const revenueGoal = goals.find(
+      g => g.kpiKey.toLowerCase().includes('revenue') && g.status !== 'DRAFT' && g.status !== 'CANCELLED'
+    );
+    const isRevenueAtRisk = Boolean(
+      revenueForecast?.direction === 'DECREASING' ||
+      (revenueGoal && revenueGoal.status === 'AT_RISK')
+    );
+    const hasVerifiedRevenueForecast = Boolean(
+      revenueForecast &&
+      typeof revenueForecast.currentValue === 'number' &&
+      typeof revenueForecast.forecastValue === 'number'
+    );
 
-    if (isRevenueAtRisk) {
-      const currentRev = revenueForecast?.currentValue ?? revenueGoal?.currentValue ?? 50000;
-      const forecastRev = revenueForecast?.forecastValue ?? (currentRev * 0.85);
+    if (isRevenueAtRisk && hasVerifiedRevenueForecast) {
+      const currentRev = revenueForecast.currentValue as number;
+      const forecastRev = revenueForecast.forecastValue as number;
 
       const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
         {
@@ -353,7 +371,7 @@ export class ExecutiveActionPlanner {
         domain: 'REVENUE',
         title: 'Investigate Revenue Shortfall Trajectory',
         description: 'Execute deep-dive diagnostic on conversion drop-offs and customer renewal pacing.',
-        whyNow: 'Monthly revenue pacing is lagging target milestones with projected 15% shortfall.',
+        whyNow: `Verified revenue forecast indicates a decline from ${currentRev.toLocaleString()} to ${forecastRev.toLocaleString()}.`,
         evidence: [
           { sourceType: 'TELEMETRY', metric: 'revenueMTD', detail: `Current revenue: $${currentRev.toLocaleString()}` },
           ...(revenueForecast ? [{ sourceType: 'FORECAST' as const, metric: 'revenueMTD', detail: `Forecast revenue: $${forecastRev.toLocaleString()}` }] : []),
