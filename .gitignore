@@ -46,3 +46,7 @@ next-env.d.ts
 .devin/
 .cursor/
 .claude/
+
+# local databases
+*.db
+*.db-journal
