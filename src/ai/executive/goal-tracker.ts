@@ -136,6 +136,7 @@ export class GoalTracker {
       startDate,
       endDate: data.endDate,
     });
+    const initialStatus: BusinessGoalStatus = 'DRAFT';
 
     const created = await prisma.businessGoal.create({
       data: {
@@ -147,7 +148,7 @@ export class GoalTracker {
         unit: data.unit,
         startDate,
         endDate: data.endDate,
-        status,
+        status: initialStatus,
       },
     });
 
@@ -173,7 +174,7 @@ export class GoalTracker {
       startDate: created.startDate,
       endDate: created.endDate,
       status: created.status as BusinessGoalStatus,
-      progressPct,
+      progressPct: 0,
       gapValue,
       timeElapsedPct,
       source: created.source as any,
@@ -191,12 +192,19 @@ export class GoalTracker {
     });
 
     return goals.map((g) => {
-      const evalResult = this.evaluateGoal({
-        targetValue: g.targetValue,
-        currentValue: g.currentValue,
-        startDate: g.startDate,
-        endDate: g.endDate,
-      });
+      const evalResult = g.status === 'DRAFT'
+        ? {
+            progressPct: 0,
+            gapValue: this.calculateGoalGap(g.targetValue, g.currentValue),
+            timeElapsedPct: this.calculateTimeElapsedPct(g.startDate, g.endDate),
+            status: 'DRAFT' as BusinessGoalStatus,
+          }
+        : this.evaluateGoal({
+            targetValue: g.targetValue,
+            currentValue: g.currentValue,
+            startDate: g.startDate,
+            endDate: g.endDate,
+          });
 
       return {
         id: g.id,
