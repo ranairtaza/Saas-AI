@@ -29,9 +29,9 @@ export default function OnboardingPage() {
     industry: "B2B SaaS",
     businessModel: "Subscriptions (ARR/MRR)",
     targetMarket: "Mid-Market B2B & Founders",
-    targetRevenue: "500000",
+    targetRevenue: "",
     operatingPriorities: "Accelerate ARR Growth",
-    initialDecisionApproved: true,
+    initialDecisionApproved: false,
   });
 
   const completeOnboarding = async () => {
@@ -444,7 +444,11 @@ export default function OnboardingPage() {
                   </div>
                   <div className="p-3 rounded-xl border border-border bg-card/60">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Annual Goal</span>
-                    <span className="text-xs font-semibold text-foreground truncate block mt-1">${Number(profile.targetRevenue || 0).toLocaleString()}</span>
+                    <span className="text-xs font-semibold text-foreground truncate block mt-1">
+                      {profile.targetRevenue && Number(profile.targetRevenue) > 0 
+                        ? `$${Number(profile.targetRevenue).toLocaleString()}` 
+                        : "Not Set (Optional)"}
+                    </span>
                   </div>
                   <div className="p-3 rounded-xl border border-border bg-card/60">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Telemetry Status</span>
@@ -466,7 +470,11 @@ export default function OnboardingPage() {
                     Initialize Executive Monitoring Baseline for {profile.operatingPriorities}
                   </h2>
                   <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                    <strong>Evidence & Reasoning:</strong> Operating priority established as <em>{profile.operatingPriorities}</em> with a target ARR of <em>${Number(profile.targetRevenue || 0).toLocaleString()}</em>. Establishing this baseline allows the decision engine to model pipeline velocity and accurately measure outcome attribution.
+                    <strong>Evidence & Reasoning:</strong> Operating priority established as <em>{profile.operatingPriorities}</em>
+                    {profile.targetRevenue && Number(profile.targetRevenue) > 0 
+                      ? ` with a target ARR of $${Number(profile.targetRevenue).toLocaleString()}` 
+                      : " with unmeasured initial baseline (ARR target optional)"}
+                    . Establishing this baseline allows the decision engine to model pipeline velocity and accurately measure outcome attribution.
                   </p>
 
                   <label className="flex items-start gap-3 p-3 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition-colors">
@@ -493,8 +501,8 @@ export default function OnboardingPage() {
                 </button>
                 <button 
                   onClick={completeOnboarding}
-                  disabled={isSubmitting}
-                  className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-lg shadow-primary/20"
+                  disabled={isSubmitting || !profile.initialDecisionApproved}
+                  className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-lg shadow-primary/20 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <><Loader2 size={18} className="animate-spin" /> Launching Command Center...</>

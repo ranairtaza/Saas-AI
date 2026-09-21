@@ -75,7 +75,7 @@ The customer completes the 4-step guided onboarding workflow:
    * Customer selects **Industry** (e.g., `B2B SaaS / Software`).
    * Customer selects **Business Model** (e.g., `Subscriptions (ARR/MRR)`).
    * Customer defines **Target Market / ICP** (e.g., `Mid-Market CFOs`).
-   * Customer enters **Target ARR Goal** (e.g., `$500,000`).
+   * Customer enters optional **Target ARR Goal** (starts empty/unset; no default financial target is forced or persisted).
    * Customer selects **Primary Operating Priority** (e.g., `Accelerate ARR Growth`).
 3. **Step 3: Integrations & Data Freshness Model**
    * Outlines monitored pillars: Stripe (Billing), Gemini (AI Reasoning), CRM (Lead Intelligence).
@@ -83,9 +83,10 @@ The customer completes the 4-step guided onboarding workflow:
 4. **Step 4: Baseline Review & First Human Approval**
    * Shows initial unrated truth baseline (`ARR: Awaiting Sync`, `Pipeline: 0`, `Health: UNRATED`).
    * Stages **Recommended Decision #1**: *"Initialize Executive Monitoring Baseline for [Priority]"*.
-   * Customer checks **"Approve as Owner"** to establish the initial governance baseline.
+   * Approval checkbox is **unchecked by default**; requires deliberate user interaction by an authorized `OWNER`/`ADMIN`. Non-executive roles cannot self-approve.
+   * Final launch button remains disabled until approval is explicitly checked.
    * Clicks **"Launch Executive Command Center"**.
-   * Transaction creates `BusinessProfile`, `ExecutiveGovernancePolicy`, `BusinessGoal`, and approved `ExecutiveDecision` with audit history.
+   * Transaction creates `BusinessProfile`, `ExecutiveGovernancePolicy`, optional `BusinessGoal` (initialized in semantically neutral `DRAFT` status), and approved `ExecutiveDecision` with audit history.
 
 ---
 

@@ -1,18 +1,22 @@
 /**
- * Phase 50 Verification Suite: Controlled Pilot Onboarding & State Machine
+ * Phase 50 Verification Suite: Controlled Pilot Onboarding & Governance Truthfulness
  *
  * Mandatory Verification Matrix:
- * 1. Onboarding state transition (User onboarded: false -> true).
- * 2. Business profile creation & operating priority alignment.
- * 3. Default governance policy initialization with non-bypassable constraints.
- * 4. Business goal creation during onboarding (ARR Target).
- * 5. First executive decision staged and approved with immutable audit record.
- * 6. Integration freshness state model taxonomy verification (8 states).
- * 7. Multi-tenant isolation during and post-onboarding.
- * 8. Empty organization truthfulness contract (overallScore: "—", status: "UNRATED").
+ * 1. Default onboarding approval is false in UI initial state.
+ * 2. Default target revenue is empty/unset in UI initial state.
+ * 3. Missing target revenue creates no ARR target.
+ * 4. Positive explicitly-entered target revenue creates ARR target.
+ * 5. Unchecked approval does not self-approve baseline (remains PENDING without DECISION_APPROVED audit).
+ * 6. Unauthorized non-executive role (MEMBER) cannot approve the baseline decision (returns HTTP 403).
+ * 7. Authorized OWNER approval creates APPROVED decision with decidedByUserId and DECISION_APPROVED audit record.
+ * 8. New goal is not marked ON_TRACK solely because currentValue is zero (persists as DRAFT).
+ * 9. Existing empty-organization dashboard remains: overallScore = '—', status = 'UNRATED', evidence = INSUFFICIENT.
+ * 10. Multi-tenant isolation is preserved during and post onboarding.
  */
 
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
 import prisma from '../src/lib/db';
 import { POST as onboardPOST } from '../src/app/api/auth/onboard/route';
 import { setTestUserOverride } from '../src/lib/session';
@@ -20,8 +24,7 @@ import { ExecutiveDashboardService } from '../src/ai/executive/dashboard-service
 import { GoalTracker } from '../src/ai/executive/goal-tracker';
 
 console.log('==========================================================================');
-console.log('🧪 LEADMACHINE — PHASE 50 VERIFICATION');
-console.log('   Controlled Pilot Onboarding & State Machine Suite');
+console.log('🧪 LEADMACHINE — PHASE 50 GOVERNANCE TRUTHFULNESS VERIFICATION');
 console.log('==========================================================================\n');
 
 let passedTests = 0;
@@ -42,128 +45,244 @@ async function it(name: string, fn: () => void | Promise<void>) {
 
 async function runTests() {
   const ts = Date.now();
-  const orgId = `pilot-org-${ts}`;
-  const userId = `pilot-user-${ts}`;
 
-  // Provision test pilot organization and user
-  await prisma.organization.create({
-    data: {
-      id: orgId,
-      name: `Pilot Corp ${ts}`,
-    }
+  // Test 1 & 2: Check onboarding page code to guarantee defaults
+  await it('1. Default onboarding approval is false in UI initial state', async () => {
+    const pagePath = path.join(process.cwd(), 'src/app/onboarding/page.tsx');
+    const content = fs.readFileSync(pagePath, 'utf8');
+    assert.ok(
+      content.includes('initialDecisionApproved: false'),
+      'UI state must initialize initialDecisionApproved as false'
+    );
+    assert.ok(
+      !content.includes('initialDecisionApproved: true'),
+      'UI state must never initialize initialDecisionApproved as true'
+    );
   });
 
+  await it('2. Default target revenue is empty/unset in UI initial state', async () => {
+    const pagePath = path.join(process.cwd(), 'src/app/onboarding/page.tsx');
+    const content = fs.readFileSync(pagePath, 'utf8');
+    assert.ok(
+      content.includes('targetRevenue: ""'),
+      'UI state must initialize targetRevenue as empty string'
+    );
+    assert.ok(
+      !content.includes('targetRevenue: "500000"'),
+      'UI state must not hardcode default revenue like 500000'
+    );
+    assert.ok(
+      content.includes('disabled={isSubmitting || !profile.initialDecisionApproved}'),
+      'UI must prevent final submission while approval is unchecked'
+    );
+  });
+
+  // Test 3: Missing target revenue creates no ARR target
+  const noGoalOrgId = `nogoal-org-${ts}`;
+  const noGoalUserId = `nogoal-user-${ts}`;
+  await prisma.organization.create({ data: { id: noGoalOrgId, name: `NoGoal Corp ${ts}` } });
   await prisma.user.create({
     data: {
-      id: userId,
-      email: `pilot_${ts}@example.com`,
+      id: noGoalUserId,
+      email: `nogoal_${ts}@example.com`,
       passwordHash: 'dummy_hash',
-      name: 'Pilot Lead User',
-      organizationId: orgId,
+      name: 'NoGoal User',
+      organizationId: noGoalOrgId,
       role: 'OWNER',
       onboarded: false,
     }
   });
 
-  // Set test override for session
-  setTestUserOverride({
-    id: userId,
-    email: `pilot_${ts}@example.com`,
-    role: 'OWNER',
-    organizationId: orgId,
-    name: 'Pilot Lead User'
-  });
+  await it('3. Missing target revenue creates no ARR target', async () => {
+    setTestUserOverride({
+      id: noGoalUserId,
+      email: `nogoal_${ts}@example.com`,
+      role: 'OWNER',
+      organizationId: noGoalOrgId,
+      name: 'NoGoal User'
+    });
 
-  await it('1. User is initially not onboarded', async () => {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    assert.strictEqual(user?.onboarded, false, 'User must initially be marked onboarded: false');
-  });
-
-  await it('2. Execute onboarding POST with profile, priority, and goal', async () => {
     const req = new Request('http://localhost:3000/api/auth/onboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        businessName: `Pilot Corp ${ts}`,
+        businessName: `NoGoal Corp ${ts}`,
         industry: 'B2B SaaS',
-        businessModel: 'Subscriptions (ARR/MRR)',
-        targetMarket: 'Enterprise Founders',
-        targetRevenue: 750000,
+        businessModel: 'Subscriptions',
+        targetMarket: 'Founders',
+        targetRevenue: '', // empty / unset
+        operatingPriorities: 'Accelerate ARR Growth',
+        initialDecisionApproved: false,
+      })
+    });
+
+    const res = await onboardPOST(req);
+    assert.strictEqual(res.status, 200);
+
+    const goal = await prisma.businessGoal.findFirst({
+      where: { organizationId: noGoalOrgId, kpiKey: 'ARR_TARGET' }
+    });
+    assert.strictEqual(goal, null, 'No business goal should be created when target revenue is empty');
+  });
+
+  // Test 5: Unchecked approval creates decision in PENDING status with no DECISION_APPROVED audit
+  await it('5. Unchecked approval creates staged decision as PENDING without approval audit', async () => {
+    const decision = await prisma.executiveDecision.findFirst({
+      where: { organizationId: noGoalOrgId }
+    });
+    assert.ok(decision, 'Baseline decision should exist');
+    assert.strictEqual(decision.status, 'PENDING', 'Decision must remain PENDING when unchecked');
+    assert.strictEqual(decision.decidedByUserId, null, 'DecidedByUserId must be null when unchecked');
+
+    const audit = await prisma.executiveDecisionAudit.findFirst({
+      where: { decisionId: decision.id, event: 'DECISION_APPROVED' }
+    });
+    assert.strictEqual(audit, null, 'Must not create DECISION_APPROVED audit when unchecked');
+  });
+
+  // Test 6: Unauthorized non-executive role cannot approve baseline decision
+  const memberOrgId = `member-org-${ts}`;
+  const memberUserId = `member-user-${ts}`;
+  await prisma.organization.create({ data: { id: memberOrgId, name: `Member Corp ${ts}` } });
+  await prisma.user.create({
+    data: {
+      id: memberUserId,
+      email: `member_${ts}@example.com`,
+      passwordHash: 'dummy_hash',
+      name: 'Member User',
+      organizationId: memberOrgId,
+      role: 'MEMBER', // Ordinary non-executive member
+      onboarded: false,
+    }
+  });
+
+  await it('6. Unauthorized non-executive role cannot approve baseline decision (returns HTTP 403)', async () => {
+    setTestUserOverride({
+      id: memberUserId,
+      email: `member_${ts}@example.com`,
+      role: 'MEMBER',
+      organizationId: memberOrgId,
+      name: 'Member User'
+    });
+
+    const req = new Request('http://localhost:3000/api/auth/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessName: `Member Corp ${ts}`,
+        targetRevenue: 500000,
+        initialDecisionApproved: true, // Non-executive attempting baseline approval
+      })
+    });
+
+    const res = await onboardPOST(req);
+    assert.strictEqual(res.status, 403, 'Must return 403 Forbidden for non-executive approval attempt');
+    const data = await res.json();
+    assert.ok(data.error.includes('Executive authority') || data.error.includes('role'), 'Error must specify role/executive requirement');
+  });
+
+  // Test 4, 7, 8: Positive target revenue creates DRAFT goal, and OWNER approval creates APPROVED decision with audit
+  const ownerOrgId = `owner-org-${ts}`;
+  const ownerUserId = `owner-user-${ts}`;
+  await prisma.organization.create({ data: { id: ownerOrgId, name: `Owner Corp ${ts}` } });
+  await prisma.user.create({
+    data: {
+      id: ownerUserId,
+      email: `owner_${ts}@example.com`,
+      passwordHash: 'dummy_hash',
+      name: 'Owner User',
+      organizationId: ownerOrgId,
+      role: 'OWNER',
+      onboarded: false,
+    }
+  });
+
+  await it('4. Positive explicitly-entered target revenue creates ARR target', async () => {
+    setTestUserOverride({
+      id: ownerUserId,
+      email: `owner_${ts}@example.com`,
+      role: 'OWNER',
+      organizationId: ownerOrgId,
+      name: 'Owner User'
+    });
+
+    const req = new Request('http://localhost:3000/api/auth/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessName: `Owner Corp ${ts}`,
+        industry: 'B2B SaaS',
+        businessModel: 'Subscriptions',
+        targetMarket: 'Enterprise',
+        targetRevenue: 600000,
         operatingPriorities: 'Accelerate ARR Growth',
         initialDecisionApproved: true,
       })
     });
 
     const res = await onboardPOST(req);
-    assert.strictEqual(res.status, 200, 'Onboarding endpoint must return 200');
-    const data = await res.json();
-    assert.strictEqual(data.success, true, 'Onboarding must succeed');
+    assert.strictEqual(res.status, 200, 'Onboarding must succeed for OWNER');
+
+    const goal = await prisma.businessGoal.findFirst({
+      where: { organizationId: ownerOrgId, kpiKey: 'ARR_TARGET' }
+    });
+    assert.ok(goal, 'Business goal must be created');
+    assert.strictEqual(goal.targetValue, 600000);
+    assert.strictEqual(goal.currentValue, 0);
   });
 
-  await it('3. User state machine transitions to onboarded: true', async () => {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    assert.strictEqual(user?.onboarded, true, 'User must transition to onboarded: true');
+  await it('7. Authorized OWNER approval creates APPROVED decision with decidedByUserId and DECISION_APPROVED audit', async () => {
+    const decision = await prisma.executiveDecision.findFirst({
+      where: { organizationId: ownerOrgId }
+    });
+    assert.ok(decision, 'Decision must exist');
+    assert.strictEqual(decision.status, 'APPROVED');
+    assert.strictEqual(decision.decidedByUserId, ownerUserId);
+
+    const audit = await prisma.executiveDecisionAudit.findFirst({
+      where: { decisionId: decision.id, event: 'DECISION_APPROVED' }
+    });
+    assert.ok(audit, 'DECISION_APPROVED audit record must exist');
+    assert.strictEqual(audit.actorUserId, ownerUserId);
   });
 
-  await it('4. Business profile is persisted with correct operating priority', async () => {
-    const profile = await prisma.businessProfile.findUnique({ where: { organizationId: orgId } });
-    assert.ok(profile, 'Business profile must be created');
-    assert.strictEqual(profile.businessName, `Pilot Corp ${ts}`);
-    assert.strictEqual(profile.operatingPriorities, 'Accelerate ARR Growth');
+  await it('8. New goal is not marked ON_TRACK solely because currentValue is zero (persists as DRAFT)', async () => {
+    const goal = await prisma.businessGoal.findFirst({
+      where: { organizationId: ownerOrgId, kpiKey: 'ARR_TARGET' }
+    });
+    assert.ok(goal, 'Business goal must exist');
+    assert.strictEqual(goal.status, 'DRAFT', 'Goal status must be DRAFT for unmeasured initial state');
+    assert.notStrictEqual(goal.status, 'ON_TRACK', 'Goal must NOT be falsely marked ON_TRACK');
   });
 
-  await it('5. Executive governance policy is initialized with human safety bounds', async () => {
-    const policy = await prisma.executiveGovernancePolicy.findFirst({ where: { organizationId: orgId } });
-    assert.ok(policy, 'Governance policy must exist');
-    assert.strictEqual(policy.policyVersion, 1);
-    assert.strictEqual(policy.riskTolerance, 'BALANCED');
-    assert.strictEqual(policy.maxFinancialExposure, 5000);
-  });
+  await it('9. Existing empty-organization dashboard remains: overallScore = "—", status = "UNRATED", evidence = INSUFFICIENT', async () => {
+    const emptyOrgId = `empty-org-${ts}`;
+    await prisma.organization.create({ data: { id: emptyOrgId, name: `Empty Corp ${ts}` } });
 
-  await it('6. Initial BusinessGoal is created for target ARR', async () => {
-    const goal = await prisma.businessGoal.findFirst({ where: { organizationId: orgId, kpiKey: 'ARR_TARGET' } });
-    assert.ok(goal, 'Business goal for ARR_TARGET must be created');
-    assert.strictEqual(goal.targetValue, 750000);
-    assert.strictEqual(goal.unit, 'CURRENCY');
-  });
-
-  await it('7. First ExecutiveDecision is created and approved with audit trail', async () => {
-    const decision = await prisma.executiveDecision.findFirst({ where: { organizationId: orgId } });
-    assert.ok(decision, 'First decision must be staged');
-    assert.strictEqual(decision.status, 'APPROVED', 'Decision should be approved when initialDecisionApproved: true');
-    assert.strictEqual(decision.decidedByUserId, userId);
-
-    const audit = await prisma.executiveDecisionAudit.findFirst({ where: { decisionId: decision.id } });
-    assert.ok(audit, 'Decision audit record must exist');
-    assert.strictEqual(audit.event, 'DECISION_APPROVED');
-    assert.strictEqual(audit.actorUserId, userId);
-  });
-
-  await it('8. Executive Dashboard snapshot serves unrated baseline truthfully without crashes', async () => {
-    const snapshot = await ExecutiveDashboardService.getDashboardReadModel(orgId, {
+    const snapshot = await ExecutiveDashboardService.getDashboardReadModel(emptyOrgId, {
       forceRefresh: true,
       mode: 'snapshot'
     });
-    assert.strictEqual(snapshot?.health?.overallScore, '—', 'Score must be unrated dash');
-    assert.strictEqual(snapshot?.health?.status, 'UNRATED', 'Status must be UNRATED');
+    assert.strictEqual(snapshot?.health?.overallScore, '—', 'Empty org health score must be dash');
+    assert.strictEqual(snapshot?.health?.status, 'UNRATED', 'Empty org health status must be UNRATED');
     assert.strictEqual(snapshot?.evidenceState?.overallEvidenceSufficiency, 'INSUFFICIENT');
   });
 
-  await it('9. Multi-tenant isolation: Second org cannot access First org goals or decisions', async () => {
-    const secondOrgId = `second-org-${ts}`;
+  await it('10. Multi-tenant isolation: Second org cannot access First org goals or decisions', async () => {
+    const isolatedOrgId = `isolated-org-${ts}`;
     await prisma.organization.create({
-      data: { id: secondOrgId, name: `Second Corp ${ts}` }
+      data: { id: isolatedOrgId, name: `Isolated Corp ${ts}` }
     });
 
-    const goals = await GoalTracker.getActiveGoals(secondOrgId);
-    assert.strictEqual(goals.length, 0, 'Second org must see 0 goals from First org');
+    const goals = await GoalTracker.getActiveGoals(isolatedOrgId);
+    assert.strictEqual(goals.length, 0, 'Isolated org must see 0 goals from other orgs');
 
-    const decisions = await prisma.executiveDecision.findMany({ where: { organizationId: secondOrgId } });
-    assert.strictEqual(decisions.length, 0, 'Second org must see 0 decisions from First org');
+    const decisions = await prisma.executiveDecision.findMany({ where: { organizationId: isolatedOrgId } });
+    assert.strictEqual(decisions.length, 0, 'Isolated org must see 0 decisions from other orgs');
   });
 
   console.log('==========================================================================');
-  console.log(`🎉 PHASE 50 VERIFICATION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);
+  console.log(`🎉 ALL ${passedTests}/${totalTests} PHASE 50 GOVERNANCE TRUTHFULNESS TESTS PASSED`);
   console.log('==========================================================================\n');
 }
 

@@ -1,20 +1,59 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import prisma from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
+import { DecisionAuthorityEvaluator } from '@/ai/executive/decisions/authority-evaluator';
+
+const OnboardingInputSchema = z.object({
+  businessName: z.string().trim().min(1, 'Business name is required').optional(),
+  industry: z.string().optional(),
+  businessModel: z.string().optional(),
+  targetMarket: z.string().optional(),
+  targetRevenue: z.union([z.number(), z.string()]).optional().transform((val) => {
+    if (val === undefined || val === null || val === '') return undefined;
+    const num = Number(val);
+    return isNaN(num) || num <= 0 ? undefined : num;
+  }),
+  operatingPriorities: z.string().optional(),
+  initialDecisionApproved: z.boolean().default(false),
+});
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     
-    if (!user) {
+    if (!user || !user.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let payload: any = {};
+    let jsonBody: any = {};
     try {
-      payload = await request.json();
-    } catch (e) {
-      // Body may be empty, which is fine for backward compatibility
+      jsonBody = await request.json();
+    } catch {
+      // Body may be empty
+    }
+
+    const parseResult = OnboardingInputSchema.safeParse(jsonBody);
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid onboarding payload', details: parseResult.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const payload = parseResult.data;
+
+    // Strict Governance Authorization Check:
+    // If the client requests approval of the initial executive decision,
+    // verify the authenticated user has explicit executive authority (OWNER or ADMIN).
+    if (payload.initialDecisionApproved) {
+      const authCheck = DecisionAuthorityEvaluator.isAuthorized(user.role, 'EXECUTIVE');
+      if (!authCheck.authorized) {
+        return NextResponse.json(
+          { error: authCheck.reason || 'Forbidden: Executive authority (OWNER or ADMIN role) is required to approve baseline governance decisions.' },
+          { status: 403 }
+        );
+      }
     }
 
     // Wrap in a transaction to ensure user, profile, governance policy, goals, and initial decision update together
@@ -64,13 +103,13 @@ export async function POST(request: Request) {
         });
       }
 
-      // Initialize initial business goal if provided
-      if (payload.targetRevenue && Number(payload.targetRevenue) > 0) {
+      // Create BusinessGoal only when customer explicitly provided a valid positive targetRevenue
+      if (payload.targetRevenue !== undefined && payload.targetRevenue > 0) {
         const existingGoal = await tx.businessGoal.findFirst({
           where: { organizationId: user.organizationId, kpiKey: 'ARR_TARGET' }
         });
         if (!existingGoal) {
-          const targetVal = Number(payload.targetRevenue);
+          const targetVal = payload.targetRevenue;
           const endDate = new Date();
           endDate.setFullYear(endDate.getFullYear() + 1); // 1-year target
           await tx.businessGoal.create({
@@ -83,7 +122,7 @@ export async function POST(request: Request) {
               unit: 'CURRENCY',
               startDate: new Date(),
               endDate,
-              status: 'ON_TRACK',
+              status: 'DRAFT', // Semantically neutral unmeasured state (not ON_TRACK)
             }
           });
         }
@@ -109,7 +148,7 @@ export async function POST(request: Request) {
             requiredAuthority: 'EXECUTIVE',
             governanceVerdict: 'ALLOWED',
             governanceExplanation: isApproved 
-              ? 'Explicitly approved by organization owner during executive onboarding.'
+              ? 'Explicitly approved by authorized executive during onboarding workflow.'
               : 'Staged during onboarding awaiting explicit executive review.',
             policyVersion: 1,
             riskScore: 10,
@@ -118,7 +157,7 @@ export async function POST(request: Request) {
             requestedByUserId: user.id,
             decidedByUserId: isApproved ? user.id : null,
             decidedAt: isApproved ? new Date() : null,
-            decisionReason: isApproved ? 'Owner approved baseline monitoring during onboarding' : null,
+            decisionReason: isApproved ? 'Executive authorized baseline monitoring during onboarding' : null,
           }
         });
 
@@ -131,13 +170,13 @@ export async function POST(request: Request) {
               event: 'DECISION_APPROVED',
               fromStatus: 'PENDING',
               toStatus: 'APPROVED',
-              reason: 'Approved by business owner during onboarding workflow',
+              reason: 'Approved by authorized executive during onboarding workflow',
               policyVersion: 1,
             }
           });
         }
       }
-    });
+    }, { timeout: 15000, maxWait: 15000 });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: any) {
