@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { createPortalSession } from '@/lib/billing/stripe';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!hasPermission(user.role, PERMISSIONS.BILLING_MANAGE)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     if (!process.env.STRIPE_SECRET_KEY) {
       return NextResponse.json(
