@@ -7,6 +7,7 @@ export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!hasPermission(user.role, PERMISSIONS.BILLING_MANAGE)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { planId } = await request.json();
     if (!planId) return NextResponse.json({ error: 'Plan ID required' }, { status: 400 });
