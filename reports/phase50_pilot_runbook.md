@@ -87,6 +87,7 @@ The customer completes the 4-step guided onboarding workflow:
    * Final launch button remains disabled until approval is explicitly checked.
    * Clicks **"Launch Executive Command Center"**.
    * Transaction creates `BusinessProfile`, `ExecutiveGovernancePolicy`, optional `BusinessGoal` (initialized in semantically neutral `DRAFT` status), and approved `ExecutiveDecision` with audit history.
+   * **API Constraint:** `POST /api/auth/onboard` mandates server-side verification. If `initialDecisionApproved: false` is passed (e.g. via direct API call), the backend responds with HTTP 400 and rejects the onboarding transaction, preserving multi-tenant safety.
 
 ---
 

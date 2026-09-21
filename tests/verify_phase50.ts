@@ -112,7 +112,7 @@ async function runTests() {
         targetMarket: 'Founders',
         targetRevenue: '', // empty / unset
         operatingPriorities: 'Accelerate ARR Growth',
-        initialDecisionApproved: false,
+        initialDecisionApproved: true,
       })
     });
 
@@ -125,19 +125,57 @@ async function runTests() {
     assert.strictEqual(goal, null, 'No business goal should be created when target revenue is empty');
   });
 
-  // Test 5: Unchecked approval creates decision in PENDING status with no DECISION_APPROVED audit
-  await it('5. Unchecked approval creates staged decision as PENDING without approval audit', async () => {
-    const decision = await prisma.executiveDecision.findFirst({
-      where: { organizationId: noGoalOrgId }
-    });
-    assert.ok(decision, 'Baseline decision should exist');
-    assert.strictEqual(decision.status, 'PENDING', 'Decision must remain PENDING when unchecked');
-    assert.strictEqual(decision.decidedByUserId, null, 'DecidedByUserId must be null when unchecked');
+  // Test 5: Unchecked approval is rejected with HTTP 400 and does not complete onboarding
+  const unapprovedOrgId = `unapproved-org-${ts}`;
+  const unapprovedUserId = `unapproved-user-${ts}`;
+  await prisma.organization.create({ data: { id: unapprovedOrgId, name: `Unapproved Corp ${ts}` } });
+  await prisma.user.create({
+    data: {
+      id: unapprovedUserId,
+      email: `unapproved_${ts}@example.com`,
+      passwordHash: 'dummy_hash',
+      name: 'Unapproved User',
+      organizationId: unapprovedOrgId,
+      role: 'OWNER',
+      onboarded: false,
+    }
+  });
 
-    const audit = await prisma.executiveDecisionAudit.findFirst({
-      where: { decisionId: decision.id, event: 'DECISION_APPROVED' }
+  await it('5. Unchecked approval is rejected with HTTP 400 and does not complete onboarding', async () => {
+    setTestUserOverride({
+      id: unapprovedUserId,
+      email: `unapproved_${ts}@example.com`,
+      role: 'OWNER',
+      organizationId: unapprovedOrgId,
+      name: 'Unapproved User'
     });
-    assert.strictEqual(audit, null, 'Must not create DECISION_APPROVED audit when unchecked');
+
+    const req = new Request('http://localhost:3000/api/auth/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        businessName: `Unapproved Corp ${ts}`,
+        industry: 'B2B SaaS',
+        businessModel: 'Subscriptions',
+        targetMarket: 'Founders',
+        targetRevenue: '',
+        operatingPriorities: 'Accelerate ARR Growth',
+        initialDecisionApproved: false, // MUST BE REJECTED
+      })
+    });
+
+    const res = await onboardPOST(req);
+    assert.strictEqual(res.status, 400, 'Must return 400 Bad Request when unchecked');
+    const data = await res.json();
+    assert.ok(data.error.includes('Explicit executive approval is required'), 'Error message must state explicit approval is required');
+
+    const user = await prisma.user.findUnique({ where: { id: unapprovedUserId } });
+    assert.strictEqual(user?.onboarded, false, 'User must not be marked onboarded');
+
+    const decision = await prisma.executiveDecision.findFirst({
+      where: { organizationId: unapprovedOrgId }
+    });
+    assert.strictEqual(decision, null, 'Must not create baseline decision if onboarding fails');
   });
 
   // Test 6: Unauthorized non-executive role cannot approve baseline decision

@@ -44,16 +44,20 @@ export async function POST(request: Request) {
     const payload = parseResult.data;
 
     // Strict Governance Authorization Check:
-    // If the client requests approval of the initial executive decision,
-    // verify the authenticated user has explicit executive authority (OWNER or ADMIN).
-    if (payload.initialDecisionApproved) {
-      const authCheck = DecisionAuthorityEvaluator.isAuthorized(user.role, 'EXECUTIVE');
-      if (!authCheck.authorized) {
-        return NextResponse.json(
-          { error: authCheck.reason || 'Forbidden: Executive authority (OWNER or ADMIN role) is required to approve baseline governance decisions.' },
-          { status: 403 }
-        );
-      }
+    // Explicit executive approval is REQUIRED to complete onboarding.
+    if (!payload.initialDecisionApproved) {
+      return NextResponse.json(
+        { error: 'Explicit executive approval is required to complete onboarding.' },
+        { status: 400 }
+      );
+    }
+
+    const authCheck = DecisionAuthorityEvaluator.isAuthorized(user.role, 'EXECUTIVE');
+    if (!authCheck.authorized) {
+      return NextResponse.json(
+        { error: authCheck.reason || 'Forbidden: Executive authority (OWNER or ADMIN role) is required to approve baseline governance decisions.' },
+        { status: 403 }
+      );
     }
 
     // Wrap in a transaction to ensure user, profile, governance policy, goals, and initial decision update together
