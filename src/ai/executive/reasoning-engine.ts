@@ -192,18 +192,18 @@ CRITICAL INSTRUCTIONS:
               `Unassigned high-priority leads currently in queue: ${(unassignedCount ?? 0)}`,
             ],
             observations: [
-              'Qualified enterprise leads experience up to 40% conversion decay when uncontacted past standard SLA thresholds.',
+              'These qualified leads are currently unassigned; the business should decide whether they require immediate routing based on its own operating policy.',
             ],
             hypotheses: [
               {
-                hypothesis: 'Prompt distribution to senior account executives will increase discovery meeting booking rates.',
-                confidence: 'HIGH',
-                confidenceRationale: 'Directly supported by historical conversion metrics on prompt outreach.',
-                supportingObservations: ['Qualified enterprise leads experience up to 40% conversion decay when uncontacted past standard SLA thresholds.'],
+                hypothesis: 'Assigning qualified unassigned leads promptly may improve operational coverage.',
+                confidence: 'MEDIUM',
+                confidenceRationale: 'The recommendation is supported by the verified existence of unassigned qualified leads, but no conversion-lift evidence is available in the current telemetry.',
+                supportingObservations: ['These qualified leads are currently unassigned; the business should decide whether they require immediate routing based on its own operating policy.'],
               },
             ],
           },
-          expectedImpact: `Accelerate $${((unassignedCount ?? 0) * 5000).toLocaleString()} in potential pipeline value.`,
+          expectedImpact: 'Potential financial impact is not quantified because no verified deal-value telemetry is available.',
           confidence: 'HIGH',
           actionProposal: {
             actionName: 'assign_lead',
@@ -262,56 +262,6 @@ CRITICAL INSTRUCTIONS:
             humanDescription: `Stage strategic recovery outreach campaign for goal "${atRiskGoal.title}".`,
             riskLevel: 'LOW',
             requiresApproval: true,
-          },
-          status: 'ACTIVE',
-          createdAt: new Date(),
-        })
-      );
-    }
-
-    // Heuristic 3: Baseline Strategic Health Check if no critical alarms
-    if (recommendations.length === 0) {
-      const priority = ExecutivePriorityEngine.calculatePriority({
-        revenueExposure: 30,
-        urgency: 20,
-        goalAlignment: 40,
-        confidence: 'HIGH',
-      });
-
-      recommendations.push(
-        ExecutiveRecommendationSchema.parse({
-          organizationId: context.organizationId,
-          domain: 'REVENUE',
-          priorityScore: priority.score,
-          priorityLevel: priority.level,
-          title: 'Maintain Current Pipeline Velocity & Expand Account Discovery',
-          executiveSummary: `All active telemetry indicators and business goals are currently on track (Revenue: $${context.telemetry.metrics.revenueMTD.value?.toLocaleString() ?? 'UNKNOWN'}, Pipeline: $${context.telemetry.metrics.pipelineValue.value?.toLocaleString() ?? 'UNKNOWN'}). Recommended action is to initiate discovery jobs for adjacent accounts.`,
-          reasoning: {
-            facts: [
-              `Revenue MTD: $${context.telemetry.metrics.revenueMTD.value?.toLocaleString() ?? 'UNKNOWN'}`,
-              `Pipeline Value: $${context.telemetry.metrics.pipelineValue.value?.toLocaleString() ?? 'UNKNOWN'}`,
-              `Active leads: ${context.telemetry.metrics.activeLeadsCount.value}`,
-            ],
-            observations: [
-              'Business telemetry indicates stable operations with zero unassigned priority backlogs.',
-            ],
-            hypotheses: [
-              {
-                hypothesis: 'Expanding account discovery in current high-performing tech categories will sustain positive growth trajectory.',
-                confidence: 'HIGH',
-                confidenceRationale: 'Consistent with current quarter performance and lack of operational anomalies.',
-                supportingObservations: ['Business telemetry indicates stable operations with zero unassigned priority backlogs.'],
-              },
-            ],
-          },
-          expectedImpact: 'Expand pipeline by an estimated 15-20 qualified accounts.',
-          confidence: 'HIGH',
-          actionProposal: {
-            actionName: 'add_lead_note',
-            actionArgs: { noteCategory: 'EXPANSION_OPPORTUNITY' },
-            humanDescription: 'Schedule automated discovery run for high-fit industry accounts.',
-            riskLevel: 'READ_ONLY',
-            requiresApproval: false,
           },
           status: 'ACTIVE',
           createdAt: new Date(),
