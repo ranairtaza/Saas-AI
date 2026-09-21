@@ -17,6 +17,9 @@ export async function POST(
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (!hasPermission(user.role, PERMISSIONS.AI_ACTION_LOW_RISK)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await params;
 
