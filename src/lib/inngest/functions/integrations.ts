@@ -74,7 +74,7 @@ export const syncIntegration = inngest.createFunction(
           where: { id: connectionId },
           data: {
             status: syncResult.success ? 'ACTIVE' : 'FAILING',
-            lastSyncAt: new Date(),
+            ...(syncResult.success ? { lastSyncAt: new Date() } : {}),
             lastError: syncResult.errorMessage,
           },
         });
