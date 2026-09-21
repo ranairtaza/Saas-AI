@@ -3,6 +3,8 @@ import { getCurrentUser } from '@/lib/session';
 import { ExecutiveMemoryService } from '@/ai/executive/memory-service';
 import { ExecutiveMemoryCategorySchema } from '@/ai/executive/types';
 import { z } from 'zod';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
 const CreateMemoryRequestSchema = z.object({
   category: ExecutiveMemoryCategorySchema,
@@ -64,6 +66,9 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!hasPermission(user.role, PERMISSIONS.ORG_SETTINGS)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const json = await request.json();
