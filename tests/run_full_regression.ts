@@ -37,10 +37,11 @@ const testSuites = [
   'tests/verify_phase48.ts',
   'tests/verify_phase48_1.ts',
   'tests/verify_phase49.ts',
+  'tests/verify_phase50.ts',
 ];
 
 console.log('==========================================================================');
-console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 49)`);
+console.log(`🧪 RUNNING FULL ${testSuites.length}-SUITE COMPREHENSIVE REGRESSION MATRIX (PHASES 18 - 50)`);
 console.log('==========================================================================\n');
 
 let allPassed = true;
@@ -57,6 +58,7 @@ const dbWriteSuites = new Set([
   'tests/verify_phase47_1.ts',
   'tests/verify_phase48_1.ts',
   'tests/verify_phase49.ts',
+  'tests/verify_phase50.ts',
 ]);
 
 for (const suite of testSuites) {

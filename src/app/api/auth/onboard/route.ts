@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       // Body may be empty, which is fine for backward compatibility
     }
 
-    // Wrap in a transaction to ensure user, profile, governance policy, and initial decision update together
+    // Wrap in a transaction to ensure user, profile, governance policy, goals, and initial decision update together
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id: user.id },
@@ -30,14 +30,14 @@ export async function POST(request: Request) {
           create: {
             organizationId: user.organizationId,
             businessName: payload.businessName,
-            industry: payload.industry || 'B2B',
+            industry: payload.industry || 'B2B SaaS',
             businessModel: payload.businessModel || 'Subscriptions',
             targetMarket: payload.targetMarket || 'General',
             operatingPriorities: payload.operatingPriorities || 'Accelerate ARR Growth'
           },
           update: {
             businessName: payload.businessName,
-            industry: payload.industry || 'B2B',
+            industry: payload.industry || 'B2B SaaS',
             businessModel: payload.businessModel || 'Subscriptions',
             targetMarket: payload.targetMarket || 'General',
             operatingPriorities: payload.operatingPriorities || 'Accelerate ARR Growth'
@@ -62,6 +62,31 @@ export async function POST(request: Request) {
             restrictedActions: JSON.stringify([]),
           }
         });
+      }
+
+      // Initialize initial business goal if provided
+      if (payload.targetRevenue && Number(payload.targetRevenue) > 0) {
+        const existingGoal = await tx.businessGoal.findFirst({
+          where: { organizationId: user.organizationId, kpiKey: 'ARR_TARGET' }
+        });
+        if (!existingGoal) {
+          const targetVal = Number(payload.targetRevenue);
+          const endDate = new Date();
+          endDate.setFullYear(endDate.getFullYear() + 1); // 1-year target
+          await tx.businessGoal.create({
+            data: {
+              organizationId: user.organizationId,
+              title: `Achieve $${targetVal.toLocaleString()} ARR Target`,
+              kpiKey: 'ARR_TARGET',
+              targetValue: targetVal,
+              currentValue: 0,
+              unit: 'CURRENCY',
+              startDate: new Date(),
+              endDate,
+              status: 'ON_TRACK',
+            }
+          });
+        }
       }
 
       // Record first executive decision baseline

@@ -9,12 +9,13 @@ import {
   ShieldCheck, 
   TrendingUp, 
   Database, 
-  Eye, 
-  Sliders, 
-  CheckSquare, 
+  Target, 
   Zap, 
   Loader2, 
-  AlertCircle 
+  AlertCircle,
+  Clock,
+  Activity,
+  AlertTriangle
 } from "lucide-react";
 
 export default function OnboardingPage() {
@@ -28,6 +29,7 @@ export default function OnboardingPage() {
     industry: "B2B SaaS",
     businessModel: "Subscriptions (ARR/MRR)",
     targetMarket: "Mid-Market B2B & Founders",
+    targetRevenue: "500000",
     operatingPriorities: "Accelerate ARR Growth",
     initialDecisionApproved: true,
   });
@@ -74,8 +76,8 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between mb-3">
             {[
               { num: 1, label: "The Operating Loop" },
-              { num: 2, label: "Profile & Priorities" },
-              { num: 3, label: "Telemetry & Data" },
+              { num: 2, label: "Profile & Goals" },
+              { num: 3, label: "Data & Freshness" },
               { num: 4, label: "First Decision" },
             ].map((s) => (
               <div key={s.num} className="flex flex-col items-center flex-1">
@@ -113,7 +115,7 @@ export default function OnboardingPage() {
               <div>
                 <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold w-fit mb-4">
                   <ShieldCheck size={14} />
-                  <span>Executive Operating System</span>
+                  <span>Executive Operating System — Controlled Pilot</span>
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-3">
                   Welcome to LeadMachine
@@ -154,7 +156,7 @@ export default function OnboardingPage() {
                   </div>
                   <div className="flex items-start gap-2.5">
                     <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
-                    <span><strong>Zero Fake Data:</strong> Unconnected telemetry displays explicit <em>Awaiting Sync</em> states.</span>
+                    <span><strong>Zero Fake Data:</strong> Unconnected telemetry displays explicit <em>Awaiting Sync</em> / <em>Insufficient Data</em>.</span>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <CheckCircle2 size={16} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -167,20 +169,20 @@ export default function OnboardingPage() {
                 onClick={() => setStep(2)}
                 className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
               >
-                Configure Business Profile <ChevronRight size={18} />
+                Configure Business Profile & Goals <ChevronRight size={18} />
               </button>
             </div>
           )}
 
-          {/* STEP 2: Organization Profile & Strategic Priorities */}
+          {/* STEP 2: Organization Profile & Strategic Goals */}
           {step === 2 && (
             <div className="flex-1 flex flex-col justify-between animate-in fade-in slide-in-from-bottom-3 duration-300">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-                  Operating Profile & Priorities
+                  Operating Profile & Business Goals
                 </h1>
                 <p className="text-muted-foreground text-sm mb-5">
-                  Define your business baseline so executive reasoning focuses on your real operational goals.
+                  Define your business baseline and initial target metrics so executive reasoning is strictly grounded.
                 </p>
 
                 <div className="space-y-4 mb-6">
@@ -238,17 +240,32 @@ export default function OnboardingPage() {
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5 block">
-                      Target Market & ICP
-                    </label>
-                    <input 
-                      type="text" 
-                      className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
-                      placeholder="e.g. Series-A Founders, Mid-Market CFOs, IT Directors"
-                      value={profile.targetMarket} 
-                      onChange={(e) => setProfile({ ...profile, targetMarket: e.target.value })} 
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5 block">
+                        Target Market & ICP
+                      </label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+                        placeholder="e.g. Series-A Founders, Mid-Market CFOs"
+                        value={profile.targetMarket} 
+                        onChange={(e) => setProfile({ ...profile, targetMarket: e.target.value })} 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5 block">
+                        Target ARR Goal ($)
+                      </label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" 
+                        placeholder="e.g. 500000"
+                        value={profile.targetRevenue} 
+                        onChange={(e) => setProfile({ ...profile, targetRevenue: e.target.value })} 
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -281,82 +298,102 @@ export default function OnboardingPage() {
                   disabled={!profile.businessName.trim()}
                   className="flex-1 bg-primary text-primary-foreground py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors disabled:opacity-50 shadow-lg shadow-primary/20"
                 >
-                  Confirm Priority & Next <ChevronRight size={18} />
+                  Confirm Goals & Next <ChevronRight size={18} />
                 </button>
               </div>
             </div>
           )}
 
-          {/* STEP 3: What LeadMachine Monitors & Business Telemetry */}
+          {/* STEP 3: Business Integrations & Data Freshness Model */}
           {step === 3 && (
             <div className="flex-1 flex flex-col justify-between animate-in fade-in slide-in-from-bottom-3 duration-300">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-                  What LeadMachine Monitors
+                  Integrations & Data Freshness
                 </h1>
                 <p className="text-muted-foreground text-sm mb-5">
-                  The operating system ingests telemetry across three core pillars. Unconnected sources clearly display <em>Awaiting Sync</em>.
+                  LeadMachine operates on strict data truthfulness. Every provider reflects an explicit deterministic state.
                 </p>
 
+                {/* Explicit State Legend */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5 text-[11px]">
+                  <div className="p-2 rounded-lg bg-card/60 border border-border">
+                    <span className="font-semibold text-muted-foreground block">NOT CONNECTED</span>
+                    <span className="text-[10px] text-muted-foreground">Provider key missing</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-card/60 border border-border">
+                    <span className="font-semibold text-blue-500 block">SYNCING</span>
+                    <span className="text-[10px] text-muted-foreground">Background pull active</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-card/60 border border-border">
+                    <span className="font-semibold text-emerald-500 block">CURRENT</span>
+                    <span className="text-[10px] text-muted-foreground">Synced within 24h</span>
+                  </div>
+                  <div className="p-2 rounded-lg bg-card/60 border border-border">
+                    <span className="font-semibold text-amber-500 block">AGING / STALE</span>
+                    <span className="text-[10px] text-muted-foreground">Overdue refresh</span>
+                  </div>
+                </div>
+
                 <div className="space-y-3 mb-6">
-                  {/* Pillar 1: Revenue */}
-                  <div className="p-4 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
+                  {/* Pillar 1: Stripe */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
-                        <TrendingUp size={20} />
+                      <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <TrendingUp size={18} />
                       </div>
                       <div>
-                        <h2 className="text-sm font-bold text-foreground">Revenue & Cash Velocity</h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Monitors ARR/MRR trends, customer expansion, contraction, and churn telemetry via Stripe.
+                        <h2 className="text-xs font-bold text-foreground">Stripe Revenue & Billing</h2>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Ingests ARR, MRR, churn, and invoice events.
                         </p>
                       </div>
                     </div>
-                    <span className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-amber-500/10 text-amber-500 shrink-0">
-                      Awaiting Sync
+                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-muted text-muted-foreground shrink-0">
+                      NOT CONNECTED
                     </span>
                   </div>
 
-                  {/* Pillar 2: Pipeline */}
-                  <div className="p-4 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
+                  {/* Pillar 2: Google Gemini */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
-                        <Zap size={20} />
+                      <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Zap size={18} />
                       </div>
                       <div>
-                        <h2 className="text-sm font-bold text-foreground">Acquisition & Pipeline Intelligence</h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Discovers verified prospects, executes AI qualification, and scores leads against your ICP.
+                        <h2 className="text-xs font-bold text-foreground">Google Gemini AI Reasoning</h2>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Advisory intelligence, anomaly explanations, and lead qualification.
                         </p>
                       </div>
                     </div>
-                    <span className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-emerald-500/10 text-emerald-500 shrink-0">
-                      Ready to Target
+                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-emerald-500/10 text-emerald-600 shrink-0">
+                      CONFIGURED
                     </span>
                   </div>
 
-                  {/* Pillar 3: Governance */}
-                  <div className="p-4 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
+                  {/* Pillar 3: CRM & Prospects */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-                        <ShieldCheck size={20} />
+                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 text-violet-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Database size={18} />
                       </div>
                       <div>
-                        <h2 className="text-sm font-bold text-foreground">Strategic Goals & Human Governance</h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Evaluates financial risk thresholds, stages recommended actions, and requires owner approval.
+                        <h2 className="text-xs font-bold text-foreground">Lead Intelligence Database</h2>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Stores customer leads, activity logs, and status transitions safely in PostgreSQL.
                         </p>
                       </div>
                     </div>
-                    <span className="text-[11px] px-2.5 py-1 rounded-full font-medium bg-primary/10 text-primary shrink-0">
-                      Active
+                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-blue-500/10 text-blue-600 shrink-0">
+                      AVAILABLE
                     </span>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground flex items-center gap-2.5">
-                  <Database size={16} className="text-primary shrink-0" />
-                  <span>You can connect live Stripe & CRM API keys anytime under <strong>Settings → Providers</strong>. Zero fake data is ever generated.</span>
+                <div className="p-3 rounded-xl bg-muted/40 border border-border text-[11px] text-muted-foreground flex items-center gap-2">
+                  <Database size={14} className="text-primary shrink-0" />
+                  <span>Connect live Stripe keys anytime under <strong>Settings → Providers</strong>. Until synced, all metrics remain strictly unrated.</span>
                 </div>
               </div>
 
@@ -406,8 +443,8 @@ export default function OnboardingPage() {
                     <span className="text-xs font-semibold text-emerald-500 block mt-1">0 Discovered</span>
                   </div>
                   <div className="p-3 rounded-xl border border-border bg-card/60">
-                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Operating Priority</span>
-                    <span className="text-xs font-semibold text-foreground truncate block mt-1">{profile.operatingPriorities.split(" ")[0]} Growth</span>
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">Annual Goal</span>
+                    <span className="text-xs font-semibold text-foreground truncate block mt-1">${Number(profile.targetRevenue || 0).toLocaleString()}</span>
                   </div>
                   <div className="p-3 rounded-xl border border-border bg-card/60">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground block">Telemetry Status</span>
@@ -429,7 +466,7 @@ export default function OnboardingPage() {
                     Initialize Executive Monitoring Baseline for {profile.operatingPriorities}
                   </h2>
                   <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                    <strong>Evidence & Reasoning:</strong> Operating priority established as <em>{profile.operatingPriorities}</em>. With live revenue telemetry pending sync, establishing your baseline criteria allows the decision engine to model pipeline velocity and accurately measure outcome attribution.
+                    <strong>Evidence & Reasoning:</strong> Operating priority established as <em>{profile.operatingPriorities}</em> with a target ARR of <em>${Number(profile.targetRevenue || 0).toLocaleString()}</em>. Establishing this baseline allows the decision engine to model pipeline velocity and accurately measure outcome attribution.
                   </p>
 
                   <label className="flex items-start gap-3 p-3 rounded-lg bg-background border border-border cursor-pointer hover:border-primary/50 transition-colors">
