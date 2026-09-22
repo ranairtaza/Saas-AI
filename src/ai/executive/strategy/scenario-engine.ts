@@ -69,10 +69,9 @@ export class ScenarioSimulationEngine {
       const deltaVal = this.round2(projectedVal - baselineVal);
       const deltaPct = baselineVal === 0 ? (projectedVal > 0 ? 100 : 0) : this.round2((deltaVal / baselineVal) * 100);
 
-      // Uncertainty calculation: Higher variance for larger percentage changes
-      const uncertaintyBand = Math.min(0.25, Math.abs(safeChange) * 0.002 + 0.05);
-      const lowerBound = this.round2(Math.max(0, projectedVal * (1 - uncertaintyBand)));
-      const upperBound = this.round2(projectedVal * (1 + uncertaintyBand));
+      // Phase 50: Do not fabricate synthetic variance. Mark uncertainty bounds as null.
+      const lowerBound = null;
+      const upperBound = null;
 
       projectedMetrics.push({
         metric: input.metric,
@@ -81,7 +80,7 @@ export class ScenarioSimulationEngine {
         projectedValue: projectedVal,
         deltaValue: deltaVal,
         deltaPercentage: deltaPct,
-        confidence: Math.round(100 - uncertaintyBand * 100),
+        confidence: null,
         uncertaintyRange: {
           lowerBound,
           upperBound,
@@ -108,42 +107,15 @@ export class ScenarioSimulationEngine {
     // Propagation Rule A: Qualified Leads -> Pipeline Value
     const leadsInput = request.inputs.find((i) => i.metric === 'qualifiedLeadsCount');
     if (leadsInput && !request.inputs.some((i) => i.metric === 'pipelineValue')) {
-      const leadDeltaPct = leadsInput.changeValue;
-      // 10% change in qualified leads -> ~7.5% change in pipeline (0.75 elasticity)
-      const pipelineElasticity = 0.75;
-      const propagatedPipelineDeltaPct = this.round2(leadDeltaPct * pipelineElasticity);
-      const propagatedPipelineVal = this.round2(Math.max(0, baselineSnapshot.pipelineValue * (1 + propagatedPipelineDeltaPct / 100)));
-
-      simulatedPipelineValue = propagatedPipelineVal;
-
       propagatedEffects.push({
         sourceMetric: 'qualifiedLeadsCount',
         targetMetric: 'pipelineValue',
         targetDomain: 'PIPELINE',
-        impactDescription: `Qualified lead adjustment (${leadDeltaPct}%) propagates to estimated pipeline value.`,
-        projectedDeltaPct: propagatedPipelineDeltaPct,
-        propagationStatus: 'DETERMINISTIC_PROJECTION',
-        rationale: 'Pipeline expands proportionally with qualified deal volume based on historical average deal size.',
+        impactDescription: `Qualified lead adjustment may propagate to pipeline value, but exact conversion elasticity requires historical telemetry.`,
+        projectedDeltaPct: null,
+        propagationStatus: 'UNKNOWN',
+        rationale: 'Pipeline expands with qualified deal volume, but conversion rates depend on real data.',
       });
-
-      // Propagation Rule B: Pipeline Value -> Revenue MTD
-      if (!request.inputs.some((i) => i.metric === 'revenueMTD')) {
-        const revenueElasticity = 0.25; // 25% of pipeline variation realizes into monthly revenue
-        const propagatedRevenueDeltaPct = this.round2(propagatedPipelineDeltaPct * revenueElasticity);
-        const propagatedRevenueVal = this.round2(Math.max(0, baselineSnapshot.revenueMTD * (1 + propagatedRevenueDeltaPct / 100)));
-
-        simulatedRevenueMTD = propagatedRevenueVal;
-
-        propagatedEffects.push({
-          sourceMetric: 'pipelineValue',
-          targetMetric: 'revenueMTD',
-          targetDomain: 'REVENUE',
-          impactDescription: `Pipeline growth propagates to recognized monthly revenue pacing.`,
-          projectedDeltaPct: propagatedRevenueDeltaPct,
-          propagationStatus: 'DETERMINISTIC_PROJECTION',
-          rationale: 'Historical win rate and sales cycle velocity yields expected revenue realization.',
-        });
-      }
     }
 
     // Propagation Rule C: Unassigned Leads -> Operational Health
@@ -199,8 +171,9 @@ export class ScenarioSimulationEngine {
 
     const confidenceScore = this.clamp(100 - riskScore * 0.5, 40, 95);
 
+    const crypto = require('crypto');
     return {
-      scenarioId: `scen-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      scenarioId: `scen-${crypto.randomUUID()}`,
       title: request.title,
       organizationId: context.organizationId,
       simulatedAt: new Date(),

@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
 export async function GET() {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!hasPermission(user.role as any, PERMISSIONS.INTEGRATION_READ)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const credentials = await prisma.providerCredential.findMany({

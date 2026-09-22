@@ -146,9 +146,9 @@ const OPERATING_LOOP_STEPS = [
     step: '1',
     title: 'CONNECT',
     subtitle: 'Business Data',
-    desc: 'Connect your business systems, CRM, Stripe, and customer telemetry into a single continuous stream.',
+    desc: 'Connect your business systems, CRM, Apollo, and customer telemetry into a single continuous stream.',
     badge: 'Step 01',
-    tag: 'Stripe · HubSpot · Telemetry',
+    tag: 'Apollo · HubSpot · Telemetry',
   },
   {
     step: '2',
@@ -320,7 +320,7 @@ const FAQS = [
   },
   {
     q: 'What business systems can I connect with LeadMachine?',
-    a: 'LeadMachine natively connects with Stripe, HubSpot, Salesforce, custom CSV imports, and enterprise data providers. Real-time webhooks keep your deal stages and operational metrics synchronized.',
+    a: 'LeadMachine natively connects with Apollo, HubSpot, Salesforce, custom CSV imports, and enterprise data providers. Real-time webhooks keep your deal stages and operational metrics synchronized.',
   },
 ];
 

@@ -25,7 +25,6 @@ export class CrossDomainDependencyEngine {
       relationshipType: 'VERIFIED_DEPENDENCY',
       evidenceStrength: 'STRONG',
       confidence: 95,
-      elasticityCoefficient: -1.0, // direct 1-to-1 operational relationship
       rationale:
         'Unassigned high-priority leads directly bottleneck lead response velocity within sales operations.',
       falsificationCriteria:
@@ -44,7 +43,6 @@ export class CrossDomainDependencyEngine {
       relationshipType: 'VERIFIED_DEPENDENCY',
       evidenceStrength: hasUnassigned ? 'STRONG' : 'MODERATE',
       confidence: 85,
-      elasticityCoefficient: 0.75,
       rationale:
         'Rapid engagement of qualified leads directly protects deal velocity and pipeline expansion.',
     });
@@ -60,7 +58,6 @@ export class CrossDomainDependencyEngine {
       relationshipType: 'VERIFIED_DEPENDENCY',
       evidenceStrength: 'STRONG',
       confidence: 90,
-      elasticityCoefficient: 0.25, // typical monthly pipeline-to-close ratio
       rationale:
         'Qualified pipeline value provides the deterministic upper bound for recognized monthly revenue conversion.',
     });
@@ -77,7 +74,6 @@ export class CrossDomainDependencyEngine {
       relationshipType: 'OBSERVED_CORRELATION',
       evidenceStrength: (highValLeads ?? 0) > 0 ? 'MODERATE' : 'WEAK',
       confidence: 70,
-      elasticityCoefficient: 0.40,
       rationale:
         'Total discovered leads correlate with qualified lead volume, subject to ICP targeting precision and enrichment data quality.',
     });

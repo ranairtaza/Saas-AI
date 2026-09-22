@@ -157,7 +157,7 @@ export class ExecutiveActionPlanner {
         domain: 'OPERATIONS',
         title: `Allocate Sales Capacity for ${targetCount} High-Priority Leads`,
         description: `Immediately distribute ${targetCount} qualified prospects currently lacking assigned account executives.`,
-        whyNow: `High-priority prospects experience conversion rate decay of up to 40% if uncontacted past 48 hours.`,
+        whyNow: `Unassigned high-priority prospects require prompt allocation to prevent velocity loss.`,
         evidence: [
           { sourceType: 'TELEMETRY', metric: 'unassignedHighPriorityLeads', detail: `${targetCount} qualified leads unassigned`, value: targetCount },
           ...(opsForecast ? [{ sourceType: 'FORECAST' as const, metric: opsForecast.metric, detail: `Ops forecast: ${opsForecast.forecastValue}` }] : []),
@@ -193,97 +193,102 @@ export class ExecutiveActionPlanner {
     // --------------------------------------------------------------------------
     const isPipelineRisk = pipelineForecast && (pipelineForecast.direction === 'DECREASING' || pipelineForecast.riskSignals.includes('PIPELINE_RISK'));
     if (isPipelineRisk || activeLeadsCount > 0) {
-      const currentPipeline = pipelineForecast?.currentValue ?? (activeLeadsCount * 2500);
-      const forecastPipeline = pipelineForecast?.forecastValue ?? (currentPipeline * 0.85);
+      const currentPipeline = pipelineForecast?.currentValue;
+      const forecastPipeline = pipelineForecast?.forecastValue;
 
-      const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
-        {
-          strategyId: `strat-pipe-${organizationId}`,
-          strategyName: 'Targeted Review of At-Risk Pipeline Deals',
+      if (currentPipeline == null || forecastPipeline == null) {
+        // Skip this action plan entirely if financial evidence is missing
+        console.warn('[ExecutiveActionPlanner] Skipping CANDIDATE 2 due to INSUFFICIENT_DATA (missing pipeline telemetry)');
+      } else {
+        const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
+          {
+            strategyId: `strat-pipe-${organizationId}`,
+            strategyName: 'Targeted Review of At-Risk Pipeline Deals',
+            domain: 'PIPELINE',
+            actionName: 'review_pipeline',
+            expectedImpact: 75,
+            evidenceStrength: 80,
+            riskScore: 30,
+            confidence: 80,
+            operationalPressure: 40,
+            estimatedFinancialExposure: 0,
+            alignedGoalKeys: goals.map(g => g.kpiKey),
+            conflictingGoalKeys: [],
+            hasActiveRefutedHypothesis: false,
+            hasMissingEvidence: false,
+          },
+          policy
+        );
+
+        const impact = ActionImpactCalculator.calculateExpectedImpact({
+          actionType: 'REVIEW_PIPELINE',
           domain: 'PIPELINE',
-          actionName: 'review_pipeline',
-          expectedImpact: 75,
-          evidenceStrength: 80,
-          riskScore: 30,
-          confidence: 80,
-          operationalPressure: 40,
-          estimatedFinancialExposure: 0,
-          alignedGoalKeys: goals.map(g => g.kpiKey),
-          conflictingGoalKeys: [],
-          hasActiveRefutedHypothesis: false,
-          hasMissingEvidence: false,
-        },
-        policy
-      );
+          confidence: 'HIGH',
+          currentMetricValue: currentPipeline,
+          forecastMetricValue: forecastPipeline,
+          targetMetric: 'pipelineValue',
+          horizon: 'MEDIUM_TERM',
+          telemetryEvidenceCount: leads.length,
+        });
 
-      const impact = ActionImpactCalculator.calculateExpectedImpact({
-        actionType: 'REVIEW_PIPELINE',
-        domain: 'PIPELINE',
-        confidence: 'HIGH',
-        currentMetricValue: currentPipeline,
-        forecastMetricValue: forecastPipeline,
-        targetMetric: 'pipelineValue',
-        horizon: 'MEDIUM_TERM',
-        telemetryEvidenceCount: leads.length,
-      });
+        const priorityRes = ActionPrioritizationEngine.calculatePriority({
+          actionType: 'REVIEW_PIPELINE',
+          urgency: isPipelineRisk ? 'HIGH' : 'MEDIUM',
+          riskLevel: isPipelineRisk ? 'HIGH' : 'MEDIUM',
+          confidence: 'HIGH',
+          expectedCost: 0,
+          isReversible: true,
+          governanceVerdict: govEvaluation.verdict,
+        });
 
-      const priorityRes = ActionPrioritizationEngine.calculatePriority({
-        actionType: 'REVIEW_PIPELINE',
-        urgency: isPipelineRisk ? 'HIGH' : 'MEDIUM',
-        riskLevel: isPipelineRisk ? 'HIGH' : 'MEDIUM',
-        confidence: 'HIGH',
-        expectedCost: 0,
-        isReversible: true,
-        governanceVerdict: govEvaluation.verdict,
-      });
+        const idempotencyKey = this.createCanonicalIdempotencyKey({
+          organizationId,
+          actionType: 'REVIEW_PIPELINE',
+          sourceSignalId: isPipelineRisk ? 'signal_pipeline_risk' : null,
+          sourceForecastId: pipelineForecast?.id ?? null,
+          target: 'pipeline_deal_stages',
+          recommendationVersion: 'v1',
+        });
 
-      const idempotencyKey = this.createCanonicalIdempotencyKey({
-        organizationId,
-        actionType: 'REVIEW_PIPELINE',
-        sourceSignalId: isPipelineRisk ? 'signal_pipeline_risk' : null,
-        sourceForecastId: pipelineForecast?.id ?? null,
-        target: 'pipeline_deal_stages',
-        recommendationVersion: 'v1',
-      });
+        const plan = await this.upsertActionPlan({
+          organizationId,
+          forecastId: pipelineForecast?.id,
+          actionType: 'REVIEW_PIPELINE',
+          domain: 'PIPELINE',
+          title: 'Conduct Pipeline Deal Re-engagement Review',
+          description: 'Review stale pipeline opportunities with deal size exceeding $10,000 to identify stuck stages.',
+          whyNow: isPipelineRisk
+            ? 'Forecast indicates potential pipeline contraction.'
+            : 'Periodic pipeline velocity check to sustain quarterly revenue trajectory.',
+          evidence: [
+            { sourceType: 'TELEMETRY', metric: 'pipelineValue', detail: `Current pipeline valuation: $${currentPipeline.toLocaleString()}` },
+            ...(pipelineForecast ? [{ sourceType: 'FORECAST' as const, metric: 'pipelineValue', detail: `Projected pipeline: $${forecastPipeline.toLocaleString()}` }] : []),
+          ],
+          expectedImpact: impact.expectedImpact,
+          expectedMetricChange: impact.expectedMetricChange,
+          targetMetric: impact.targetMetric,
+          timeHorizon: impact.timeHorizon,
+          expectedCost: 0,
+          riskLevel: isPipelineRisk ? 'HIGH' : 'MEDIUM',
+          urgency: isPipelineRisk ? 'HIGH' : 'MEDIUM',
+          priority: priorityRes.priority,
+          priorityScore: priorityRes.priorityScore,
+          confidence: 'HIGH',
+          governanceVerdict: govEvaluation.verdict,
+          governanceExplanation: govEvaluation.explanation,
+          requiredAuthority: govEvaluation.requiredApproval,
+          status: govEvaluation.verdict === 'BLOCKED' ? 'BLOCKED' : 'PROPOSED',
+          idempotencyKey,
+          actionPayload: {
+            targetTool: 'audit_pipeline',
+            actionArgs: { minDealValue: 10000, stageFilter: 'STALLED' },
+            humanDescription: 'Generate executive pipeline health audit across stalled deals',
+            riskLevel: 'LOW',
+          },
+        });
 
-      const plan = await this.upsertActionPlan({
-        organizationId,
-        forecastId: pipelineForecast?.id,
-        actionType: 'REVIEW_PIPELINE',
-        domain: 'PIPELINE',
-        title: 'Conduct Pipeline Deal Re-engagement Review',
-        description: 'Review stale pipeline opportunities with deal size exceeding $10,000 to identify stuck stages.',
-        whyNow: isPipelineRisk
-          ? 'Phase 30 predictive forecast indicates pipeline contraction over the 30-day horizon.'
-          : 'Periodic pipeline velocity check to sustain quarterly revenue trajectory.',
-        evidence: [
-          { sourceType: 'TELEMETRY', metric: 'pipelineValue', detail: `Current pipeline valuation: $${currentPipeline.toLocaleString()}` },
-          ...(pipelineForecast ? [{ sourceType: 'FORECAST' as const, metric: 'pipelineValue', detail: `Projected pipeline: $${forecastPipeline.toLocaleString()}` }] : []),
-        ],
-        expectedImpact: impact.expectedImpact,
-        expectedMetricChange: impact.expectedMetricChange,
-        targetMetric: impact.targetMetric,
-        timeHorizon: impact.timeHorizon,
-        expectedCost: 0,
-        riskLevel: isPipelineRisk ? 'HIGH' : 'MEDIUM',
-        urgency: isPipelineRisk ? 'HIGH' : 'MEDIUM',
-        priority: priorityRes.priority,
-        priorityScore: priorityRes.priorityScore,
-        confidence: 'HIGH',
-        governanceVerdict: govEvaluation.verdict,
-        governanceExplanation: govEvaluation.explanation,
-        requiredAuthority: govEvaluation.requiredApproval,
-        status: govEvaluation.verdict === 'BLOCKED' ? 'BLOCKED' : 'PROPOSED',
-        idempotencyKey,
-        actionPayload: {
-          targetTool: 'audit_pipeline',
-          actionArgs: { minDealValue: 10000, stageFilter: 'STALLED' },
-          humanDescription: 'Generate executive pipeline health audit across stalled deals',
-          riskLevel: 'LOW',
-        },
-      });
-
-      createdPlans.push(plan);
+        createdPlans.push(plan);
+      }
     }
 
     // --------------------------------------------------------------------------
@@ -293,95 +298,100 @@ export class ExecutiveActionPlanner {
     const isRevenueAtRisk = revenueForecast?.direction === 'DECREASING' || (revenueGoal && revenueGoal.status === 'AT_RISK');
 
     if (isRevenueAtRisk) {
-      const currentRev = revenueForecast?.currentValue ?? revenueGoal?.currentValue ?? 50000;
-      const forecastRev = revenueForecast?.forecastValue ?? (currentRev * 0.85);
+      const currentRev = revenueForecast?.currentValue ?? revenueGoal?.currentValue;
+      const forecastRev = revenueForecast?.forecastValue;
 
-      const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
-        {
-          strategyId: `strat-rev-${organizationId}`,
-          strategyName: 'Investigate Revenue Gap & Optimize Conversion Channels',
+      if (currentRev == null || forecastRev == null) {
+        // Skip this action plan entirely if financial evidence is missing
+        console.warn('[ExecutiveActionPlanner] Skipping CANDIDATE 3 due to INSUFFICIENT_DATA (missing revenue telemetry)');
+      } else {
+        const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
+          {
+            strategyId: `strat-rev-${organizationId}`,
+            strategyName: 'Investigate Revenue Gap & Optimize Conversion Channels',
+            domain: 'REVENUE',
+            actionName: 'investigate_revenue',
+            expectedImpact: 85,
+            evidenceStrength: 75,
+            riskScore: 45,
+            confidence: 75,
+            operationalPressure: 55,
+            estimatedFinancialExposure: 0,
+            alignedGoalKeys: revenueGoal ? [revenueGoal.kpiKey] : [],
+            conflictingGoalKeys: [],
+            hasActiveRefutedHypothesis: false,
+            hasMissingEvidence: false,
+          },
+          policy
+        );
+
+        const impact = ActionImpactCalculator.calculateExpectedImpact({
+          actionType: 'INVESTIGATE_REVENUE_DROP',
           domain: 'REVENUE',
-          actionName: 'investigate_revenue',
-          expectedImpact: 85,
-          evidenceStrength: 75,
-          riskScore: 45,
-          confidence: 75,
-          operationalPressure: 55,
-          estimatedFinancialExposure: 0,
-          alignedGoalKeys: revenueGoal ? [revenueGoal.kpiKey] : [],
-          conflictingGoalKeys: [],
-          hasActiveRefutedHypothesis: false,
-          hasMissingEvidence: false,
-        },
-        policy
-      );
+          confidence: 'HIGH',
+          currentMetricValue: currentRev,
+          forecastMetricValue: forecastRev,
+          targetMetric: 'revenueMTD',
+          horizon: 'MEDIUM_TERM',
+          telemetryEvidenceCount: leads.length,
+        });
 
-      const impact = ActionImpactCalculator.calculateExpectedImpact({
-        actionType: 'INVESTIGATE_REVENUE_DROP',
-        domain: 'REVENUE',
-        confidence: 'HIGH',
-        currentMetricValue: currentRev,
-        forecastMetricValue: forecastRev,
-        targetMetric: 'revenueMTD',
-        horizon: 'MEDIUM_TERM',
-        telemetryEvidenceCount: leads.length,
-      });
+        const priorityRes = ActionPrioritizationEngine.calculatePriority({
+          actionType: 'INVESTIGATE_REVENUE_DROP',
+          urgency: 'HIGH',
+          riskLevel: 'HIGH',
+          confidence: 'HIGH',
+          expectedCost: 0,
+          isReversible: true,
+          governanceVerdict: govEvaluation.verdict,
+        });
 
-      const priorityRes = ActionPrioritizationEngine.calculatePriority({
-        actionType: 'INVESTIGATE_REVENUE_DROP',
-        urgency: 'HIGH',
-        riskLevel: 'HIGH',
-        confidence: 'HIGH',
-        expectedCost: 0,
-        isReversible: true,
-        governanceVerdict: govEvaluation.verdict,
-      });
+        const idempotencyKey = this.createCanonicalIdempotencyKey({
+          organizationId,
+          actionType: 'INVESTIGATE_REVENUE_DROP',
+          sourceSignalId: isRevenueAtRisk ? 'signal_revenue_at_risk' : null,
+          sourceForecastId: revenueForecast?.id ?? null,
+          target: 'revenue_shortfall_trajectory',
+          recommendationVersion: 'v1',
+        });
 
-      const idempotencyKey = this.createCanonicalIdempotencyKey({
-        organizationId,
-        actionType: 'INVESTIGATE_REVENUE_DROP',
-        sourceSignalId: isRevenueAtRisk ? 'signal_revenue_at_risk' : null,
-        sourceForecastId: revenueForecast?.id ?? null,
-        target: 'revenue_shortfall_trajectory',
-        recommendationVersion: 'v1',
-      });
+        const plan = await this.upsertActionPlan({
+          organizationId,
+          forecastId: revenueForecast?.id,
+          actionType: 'INVESTIGATE_REVENUE_DROP',
+          domain: 'REVENUE',
+          title: 'Investigate Revenue Shortfall Trajectory',
+          description: 'Execute deep-dive diagnostic on conversion drop-offs and customer renewal pacing.',
+          whyNow: 'Monthly revenue pacing is lagging target milestones with projected 15% shortfall.',
+          evidence: [
+            { sourceType: 'TELEMETRY', metric: 'revenueMTD', detail: `Current revenue: $${currentRev.toLocaleString()}` },
+            ...(revenueForecast ? [{ sourceType: 'FORECAST' as const, metric: 'revenueMTD', detail: `Forecast revenue: $${forecastRev.toLocaleString()}` }] : []),
+          ],
+          expectedImpact: impact.expectedImpact,
+          expectedMetricChange: impact.expectedMetricChange,
+          targetMetric: impact.targetMetric,
+          timeHorizon: impact.timeHorizon,
+          expectedCost: 0,
+          riskLevel: 'HIGH',
+          urgency: 'HIGH',
+          priority: priorityRes.priority,
+          priorityScore: priorityRes.priorityScore,
+          confidence: 'HIGH',
+          governanceVerdict: govEvaluation.verdict,
+          governanceExplanation: govEvaluation.explanation,
+          requiredAuthority: govEvaluation.requiredApproval,
+          status: govEvaluation.verdict === 'BLOCKED' ? 'BLOCKED' : 'PROPOSED',
+          idempotencyKey,
+          actionPayload: {
+            targetTool: 'revenue_diagnostic',
+            actionArgs: { varianceThreshold: 0.15 },
+            humanDescription: 'Compile comprehensive revenue variance diagnosis',
+            riskLevel: 'MEDIUM',
+          },
+        });
 
-      const plan = await this.upsertActionPlan({
-        organizationId,
-        forecastId: revenueForecast?.id,
-        actionType: 'INVESTIGATE_REVENUE_DROP',
-        domain: 'REVENUE',
-        title: 'Investigate Revenue Shortfall Trajectory',
-        description: 'Execute deep-dive diagnostic on conversion drop-offs and customer renewal pacing.',
-        whyNow: 'Monthly revenue pacing is lagging target milestones with projected 15% shortfall.',
-        evidence: [
-          { sourceType: 'TELEMETRY', metric: 'revenueMTD', detail: `Current revenue: $${currentRev.toLocaleString()}` },
-          ...(revenueForecast ? [{ sourceType: 'FORECAST' as const, metric: 'revenueMTD', detail: `Forecast revenue: $${forecastRev.toLocaleString()}` }] : []),
-        ],
-        expectedImpact: impact.expectedImpact,
-        expectedMetricChange: impact.expectedMetricChange,
-        targetMetric: impact.targetMetric,
-        timeHorizon: impact.timeHorizon,
-        expectedCost: 0,
-        riskLevel: 'HIGH',
-        urgency: 'HIGH',
-        priority: priorityRes.priority,
-        priorityScore: priorityRes.priorityScore,
-        confidence: 'HIGH',
-        governanceVerdict: govEvaluation.verdict,
-        governanceExplanation: govEvaluation.explanation,
-        requiredAuthority: govEvaluation.requiredApproval,
-        status: govEvaluation.verdict === 'BLOCKED' ? 'BLOCKED' : 'PROPOSED',
-        idempotencyKey,
-        actionPayload: {
-          targetTool: 'revenue_diagnostic',
-          actionArgs: { varianceThreshold: 0.15 },
-          humanDescription: 'Compile comprehensive revenue variance diagnosis',
-          riskLevel: 'MEDIUM',
-        },
-      });
-
-      createdPlans.push(plan);
+        createdPlans.push(plan);
+      }
     }
 
     // Log proposal audit

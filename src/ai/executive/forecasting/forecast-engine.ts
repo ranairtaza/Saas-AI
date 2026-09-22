@@ -153,14 +153,35 @@ export class ForecastEngine {
       learningAdjustmentPct = Math.max(-15, Math.min(15, avgVariance * 0.3));
     }
 
-    // Default baseline monthly growth
-    const baseGrowthPct = input.growthRatePct ?? 5; // 5% baseline monthly growth
+    // Baseline growth MUST be derived from real data. Return null if no historical data.
+    if (input.growthRatePct === undefined || input.growthRatePct === null) {
+      return {
+        organizationId: orgId,
+        sourceType: 'TELEMETRY',
+        domain: input.domain,
+        metric: input.metric,
+        currentValue: input.currentValue,
+        forecastValue: null,
+        forecastHorizon: input.horizon,
+        horizonDays,
+        lowerBound: null,
+        upperBound: null,
+        confidence: 'INSUFFICIENT',
+        direction: 'STABLE',
+        scenarioType: input.scenarioType || 'BASELINE',
+        evidence: `Insufficient historical telemetry to project ${input.metric}.`,
+        assumptions: ['No projection can be made without historical variance or growth rate.'],
+        riskSignals: [],
+      };
+    }
+    const baseGrowthPct = input.growthRatePct;
+    
+    // Scenarios rely on the uncertainty band, not fabricated multipliers
     let scenarioMultiplier = 1.0;
-
     if (input.scenarioType === 'OPTIMISTIC') {
-      scenarioMultiplier = 1.25; // 25% optimistic acceleration
+      scenarioMultiplier = 1.0 + (learningAdjustmentPct > 0 ? (learningAdjustmentPct / 100) : 0);
     } else if (input.scenarioType === 'CONSERVATIVE') {
-      scenarioMultiplier = 0.75; // 25% conservative haircut
+      scenarioMultiplier = 1.0 - (learningAdjustmentPct < 0 ? Math.abs(learningAdjustmentPct) / 100 : 0);
     }
 
     const isDecreasingMetric =
@@ -170,13 +191,12 @@ export class ForecastEngine {
 
     let forecastValue = input.currentValue;
 
+    // We only apply the effective historical growth rate, we don't fabricate default progress
+    const effectiveGrowthRate = ((baseGrowthPct + learningAdjustmentPct) / 100) * timeFactor * scenarioMultiplier;
+    
     if (isDecreasingMetric) {
-      // For decreasing metrics (backlog), positive action reduces the value
-      const reductionRate = (0.2 * timeFactor * scenarioMultiplier);
-      forecastValue = Math.max(0, Math.round(input.currentValue * (1 - reductionRate) * 100) / 100);
+      forecastValue = Math.max(0, Math.round(input.currentValue * (1 - Math.abs(effectiveGrowthRate)) * 100) / 100);
     } else {
-      const effectiveGrowthRate =
-        ((baseGrowthPct + learningAdjustmentPct) / 100) * timeFactor * scenarioMultiplier;
       forecastValue = Math.round(input.currentValue * (1 + effectiveGrowthRate) * 100) / 100;
     }
 
@@ -212,9 +232,9 @@ export class ForecastEngine {
       `Telemetry ingestion data quality remains consistent.`,
     ];
     if (input.scenarioType === 'OPTIMISTIC') {
-      assumptions.push('Optimal lead response velocity and pipeline conversion execution.');
+      assumptions.push('Optimal execution based on upper historical variance.');
     } else if (input.scenarioType === 'CONSERVATIVE') {
-      assumptions.push('Factoring in potential operational latency and market headwinds.');
+      assumptions.push('Factoring in potential headwinds based on lower historical variance.');
     }
 
     // Evaluate predictive risks for this metric
@@ -286,38 +306,34 @@ export class ForecastEngine {
     const topPredictiveRisks: PredictiveRiskSignal[] = [];
 
     // 1. Core Supported Telemetry Metrics
+    // Do not fabricate default growth rates
     const metricsConfig: Array<{
       domain: ForecastDomain;
       metric: string;
       currentValue: number;
-      growthRatePct: number;
       targetGoalKpi?: string;
     }> = [
       {
         domain: 'REVENUE',
         metric: 'revenueMTD',
         currentValue: (telemetry.metrics.revenueMTD?.value ?? 0),
-        growthRatePct: 8,
         targetGoalKpi: 'revenue_mrr',
       },
       {
         domain: 'PIPELINE',
         metric: 'pipelineValue',
         currentValue: (telemetry.metrics.pipelineValue?.value ?? 0),
-        growthRatePct: 10,
         targetGoalKpi: 'pipeline_target',
       },
       {
         domain: 'SALES',
         metric: 'qualifiedLeadsCount',
         currentValue: (telemetry.metrics.qualifiedLeads?.value ?? 0),
-        growthRatePct: 12,
       },
       {
         domain: 'OPERATIONS',
         metric: 'unassignedHighPriorityLeads',
         currentValue: (telemetry.metrics.unassignedHighPriorityLeads?.value ?? 0),
-        growthRatePct: -20, // reducing
       },
     ];
 
@@ -339,7 +355,6 @@ export class ForecastEngine {
         currentValue: m.currentValue,
         horizon: 'MEDIUM_TERM',
         scenarioType: 'BASELINE',
-        growthRatePct: m.growthRatePct,
         historicalSignals,
         targetGoalValue: targetGoalVal,
       });
@@ -354,7 +369,6 @@ export class ForecastEngine {
         currentValue: m.currentValue,
         horizon: 'MEDIUM_TERM',
         scenarioType: 'OPTIMISTIC',
-        growthRatePct: m.growthRatePct,
         historicalSignals,
       });
 
@@ -364,18 +378,20 @@ export class ForecastEngine {
         currentValue: m.currentValue,
         horizon: 'MEDIUM_TERM',
         scenarioType: 'CONSERVATIVE',
-        growthRatePct: m.growthRatePct,
         historicalSignals,
       });
 
       const variancePotentialPct =
-        baselineForecast.forecastValue > 0
+        baselineForecast.forecastValue !== null &&
+        baselineForecast.forecastValue > 0 &&
+        optForecast.forecastValue !== null &&
+        consForecast.forecastValue !== null
           ? Math.round(
               ((optForecast.forecastValue - consForecast.forecastValue) /
                 baselineForecast.forecastValue) *
                 100
             )
-          : 0;
+          : null;
 
       scenarioComparisons.push({
         metric: m.metric,
@@ -395,7 +411,6 @@ export class ForecastEngine {
       metric: 'revenueMTD',
       currentValue: (telemetry.metrics.revenueMTD?.value ?? 0),
       horizon: 'SHORT_TERM',
-      growthRatePct: 8,
       historicalSignals,
     });
     forecasts.push(shortTermRev);
@@ -405,7 +420,6 @@ export class ForecastEngine {
       metric: 'pipelineValue',
       currentValue: (telemetry.metrics.pipelineValue?.value ?? 0),
       horizon: 'LONG_TERM',
-      growthRatePct: 10,
       historicalSignals,
     });
     forecasts.push(longTermPipeline);

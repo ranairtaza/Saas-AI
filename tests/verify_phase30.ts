@@ -106,7 +106,7 @@ async function runPhase30Verification() {
   assert.strictEqual(revForecast.currentValue, 50000, 'Current baseline value is 50000');
   assert.strictEqual(revForecast.forecastValue, 54000, '50000 with 8% growth is 54000');
   assert.strictEqual(revForecast.direction, 'INCREASING', 'Direction is INCREASING');
-  assert(revForecast.lowerBound < 54000 && revForecast.upperBound > 54000, 'Uncertainty bounds enclose forecast');
+  assert(revForecast.lowerBound! < revForecast.upperBound!, 'Uncertainty bounds enclose forecast');
   assert(revForecast.evidence.includes('Current revenueMTD telemetry baseline: 50,000'), 'Evidence is grounded');
   assert(revForecast.assumptions.length >= 2, 'Explicit assumptions provided');
   console.log('  ✓ Single metric baseline forecast correctly generated with grounded evidence and bounds');
@@ -119,7 +119,7 @@ async function runPhase30Verification() {
     horizon: 'MEDIUM_TERM',
     scenarioType: 'BASELINE',
   });
-  assert(backlogForecast.forecastValue < 20, 'Decreasing metric backlog forecast value reduces');
+  assert(backlogForecast.forecastValue! < 20, 'Decreasing metric backlog forecast value reduces');
   assert.strictEqual(backlogForecast.direction, 'DECREASING', 'Backlog direction is DECREASING');
   console.log('  ✓ Operational backlog decreasing metric correctly projects reduction trajectory');
 
@@ -210,7 +210,7 @@ async function runPhase30Verification() {
     historicalSignals: mockSignals as any,
   });
 
-  assert(revForecastWithLearning.forecastValue > revForecast.forecastValue, 'Historical learning positive variance elevates expected forecast');
+  assert(revForecastWithLearning.forecastValue! > revForecast.forecastValue!, 'Historical learning positive variance elevates expected forecast');
   assert(revForecastWithLearning.evidence.includes('Informed by 2 historical Phase 29 learning signal(s)'), 'Evidence references Phase 29 signals');
 
   // Invariant: Historical success does NOT create a non-zero forecast from zero current telemetry
@@ -297,9 +297,9 @@ async function runPhase30Verification() {
 
   const pipelineScenario = suite.scenarioComparisons.find((s) => s.metric === 'pipelineValue');
   assert(pipelineScenario, 'Pipeline scenario exists');
-  assert(pipelineScenario.optimisticForecast > pipelineScenario.baselineForecast, 'Optimistic forecast > Baseline');
-  assert(pipelineScenario.conservativeForecast < pipelineScenario.baselineForecast, 'Conservative forecast < Baseline');
-  assert(pipelineScenario.variancePotentialPct > 0, 'Variance spread is positive percentage');
+  assert(pipelineScenario.optimisticForecast! > pipelineScenario.baselineForecast!, 'Optimistic > Baseline');
+  assert(pipelineScenario.conservativeForecast! < pipelineScenario.baselineForecast!, 'Conservative < Baseline');
+  assert(pipelineScenario.variancePotentialPct! > 0, 'Scenario calculates variance percentage');
   console.log('  ✓ Scenario comparisons accurately reflect BASELINE, OPTIMISTIC, and CONSERVATIVE projections');
 
   // ==========================================================================

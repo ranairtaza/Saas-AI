@@ -257,15 +257,12 @@ async function runPhase26Verification() {
 
   // --- Category 4: Cross-Domain Effect Propagation ---
   console.log('\n--- Category 4: Cross-Domain Propagation ---');
-  assert(simResult.propagatedEffects.length >= 2, `Test 4a: Qualified leads propagated downstream (${simResult.propagatedEffects.length} effects)`);
+  assert(simResult.propagatedEffects.length >= 1, `Test 4a: Qualified leads propagated downstream (${simResult.propagatedEffects.length} effects)`);
 
   const pipelineProp = simResult.propagatedEffects.find((p) => p.targetMetric === 'pipelineValue');
   assert(pipelineProp !== undefined, 'Test 4b: Propagated effect to pipelineValue found');
-  assert(pipelineProp?.projectedDeltaPct === 15, `Test 4c: Pipeline expanded by 15% (20% * 0.75 elasticity) (got ${pipelineProp?.projectedDeltaPct})`);
-
-  const revProp = simResult.propagatedEffects.find((p) => p.targetMetric === 'revenueMTD');
-  assert(revProp !== undefined, 'Test 4d: Propagated effect to revenueMTD found');
-  assert(revProp?.projectedDeltaPct === 3.75, `Test 4e: Revenue expanded by 3.75% (15% * 0.25 elasticity) (got ${revProp?.projectedDeltaPct})`);
+  assert(pipelineProp?.projectedDeltaPct === null, `Test 4c: Pipeline expansion elasticity is unknown without telemetry (got ${pipelineProp?.projectedDeltaPct})`);
+  assert(pipelineProp?.propagationStatus === 'UNKNOWN', 'Test 4d: Propagation status is UNKNOWN');
 
   // --- Category 5: Strategic Scoring & Multi-Strategy Comparison ---
   console.log('\n--- Category 5: Strategy Scoring & Comparison Formula ---');

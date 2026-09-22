@@ -3,8 +3,10 @@ import prisma from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { encrypt } from '@/lib/encryption';
 import { z } from 'zod';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
-const ALLOWLISTED_PROVIDERS = ['apollo'];
+const ALLOWLISTED_PROVIDERS = ['apollo', 'stripe'];
 
 const credentialSchema = z.object({
   apiKey: z.string().min(1)
@@ -16,6 +18,10 @@ export async function PUT(request: Request, context: { params: Promise<{ provide
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!hasPermission(user.role as any, PERMISSIONS.INTEGRATION_CONFIGURE)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const provider = paramProvider.toLowerCase();
@@ -61,6 +67,10 @@ export async function DELETE(request: Request, context: { params: Promise<{ prov
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!hasPermission(user.role as any, PERMISSIONS.INTEGRATION_CONFIGURE)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const provider = paramProvider.toLowerCase();

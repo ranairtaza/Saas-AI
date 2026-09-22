@@ -43,7 +43,7 @@ export class GovernanceFilter {
           confidence: opt.confidence,
           riskScore: opt.risk,
           operationalPressure: opt.operationalPressure,
-          estimatedFinancialExposure: opt.domain === 'REVENUE' || opt.domain === 'MARKETING' ? 2500 : 0,
+          estimatedFinancialExposure: 0, // Phase 50: Do not fabricate financial exposure.
           alignedGoalKeys: context.goals.map((g) => g.kpiKey),
           conflictingGoalKeys: [],
           hasActiveRefutedHypothesis: isRefuted,

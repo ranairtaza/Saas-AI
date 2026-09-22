@@ -222,19 +222,19 @@ async function runPhase23Tests() {
 
     // Case 1: Mid-year (50% elapsed), but only 10% progress -> BEHIND
     const midYear = new Date('2026-07-01');
-    const statusBehind = GoalTracker.determineGoalStatus(100000, 10000, startDate, endDate, midYear);
+    const statusBehind = GoalTracker.determineGoalStatus(100000, 10000, startDate, endDate, undefined, midYear);
     assert(statusBehind === 'BEHIND', `Test 5a: Pacing 10% progress at 50% time elapsed is BEHIND (got ${statusBehind})`);
 
     // Case 2: Mid-year (50% elapsed), 35% progress -> AT_RISK (35/50 = 0.70 ratio)
-    const statusAtRisk = GoalTracker.determineGoalStatus(100000, 35000, startDate, endDate, midYear);
+    const statusAtRisk = GoalTracker.determineGoalStatus(100000, 35000, startDate, endDate, undefined, midYear);
     assert(statusAtRisk === 'AT_RISK', `Test 5b: Pacing 35% progress at 50% time elapsed is AT_RISK (got ${statusAtRisk})`);
 
     // Case 3: Mid-year (50% elapsed), 50% progress -> ON_TRACK
-    const statusOnTrack = GoalTracker.determineGoalStatus(100000, 50000, startDate, endDate, midYear);
+    const statusOnTrack = GoalTracker.determineGoalStatus(100000, 50000, startDate, endDate, undefined, midYear);
     assert(statusOnTrack === 'ON_TRACK', `Test 5c: Pacing 50% progress at 50% time elapsed is ON_TRACK (got ${statusOnTrack})`);
 
     // Case 4: Target achieved -> ACHIEVED
-    const statusAchieved = GoalTracker.determineGoalStatus(100000, 105000, startDate, endDate, midYear);
+    const statusAchieved = GoalTracker.determineGoalStatus(100000, 105000, startDate, endDate, undefined, midYear);
     assert(statusAchieved === 'ACHIEVED', `Test 5d: Exceeding target is ACHIEVED (got ${statusAchieved})`);
   } catch (err: any) {
     assert(false, 'Test 5: Goal status calculation', err.message);

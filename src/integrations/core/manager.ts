@@ -75,7 +75,7 @@ export class SyncManager {
         where: { id: connectionId },
         data: {
           status: result.success ? 'ACTIVE' : 'FAILING',
-          lastSyncAt: new Date(),
+          ...(result.success && { lastSyncAt: new Date() }), // Phase 50: Only update lastSyncAt on success
           lastError: result.errorMessage
         }
       });

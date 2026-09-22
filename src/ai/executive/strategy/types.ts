@@ -112,10 +112,10 @@ export const ProjectedMetricOutputSchema = z.object({
   projectedValue: z.number(),
   deltaValue: z.number(),
   deltaPercentage: z.number(),
-  confidence: z.number().min(0).max(100),
+  confidence: z.number().min(0).max(100).nullable(),
   uncertaintyRange: z.object({
-    lowerBound: z.number(),
-    upperBound: z.number(),
+    lowerBound: z.number().nullable(),
+    upperBound: z.number().nullable(),
   }),
 });
 export type ProjectedMetricOutput = z.infer<typeof ProjectedMetricOutputSchema>;

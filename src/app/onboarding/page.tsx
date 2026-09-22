@@ -132,7 +132,7 @@ export default function OnboardingPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     <div className="p-2.5 rounded-lg bg-background border border-border flex flex-col justify-between">
                       <span className="font-semibold text-primary">1. BUSINESS DATA</span>
-                      <span className="text-[11px] text-muted-foreground mt-1">Stripe, Leads, Goals</span>
+                      <span className="text-[11px] text-muted-foreground mt-1">Apollo, Leads, Goals</span>
                     </div>
                     <div className="p-2.5 rounded-lg bg-background border border-border flex flex-col justify-between">
                       <span className="font-semibold text-blue-500">2. BUSINESS STATE</span>
@@ -336,16 +336,16 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  {/* Pillar 1: Stripe */}
+                  {/* Pillar 1: Apollo */}
                   <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
                         <TrendingUp size={18} />
                       </div>
                       <div>
-                        <h2 className="text-xs font-bold text-foreground">Stripe Revenue & Billing</h2>
+                        <h2 className="text-xs font-bold text-foreground">Apollo B2B Data & Enrichment</h2>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          Ingests ARR, MRR, churn, and invoice events.
+                          Ingests verified lead profiles, contact details, and tech stack signals.
                         </p>
                       </div>
                     </div>
@@ -354,7 +354,25 @@ export default function OnboardingPage() {
                     </span>
                   </div>
 
-                  {/* Pillar 2: Google Gemini */}
+                  {/* Pillar 2: Stripe */}
+                  <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-green-500/10 text-green-500 flex items-center justify-center shrink-0 mt-0.5">
+                        <Activity size={18} />
+                      </div>
+                      <div>
+                        <h2 className="text-xs font-bold text-foreground">Stripe Revenue Telemetry</h2>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Tracks verified billing, revenue, and active subscription pipelines securely.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] px-2.5 py-1 rounded-full font-semibold bg-muted text-muted-foreground shrink-0">
+                      NOT CONNECTED
+                    </span>
+                  </div>
+
+                  {/* Pillar 3: Google Gemini */}
                   <div className="p-3.5 rounded-xl border border-border bg-card/60 flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 mt-0.5">
@@ -393,7 +411,7 @@ export default function OnboardingPage() {
 
                 <div className="p-3 rounded-xl bg-muted/40 border border-border text-[11px] text-muted-foreground flex items-center gap-2">
                   <Database size={14} className="text-primary shrink-0" />
-                  <span>Connect live Stripe keys anytime under <strong>Settings → Providers</strong>. Until synced, all metrics remain strictly unrated.</span>
+                  <span>Connect live Apollo keys anytime under <strong>Settings → Providers</strong>. Until synced, all metrics remain strictly unrated.</span>
                 </div>
               </div>
 

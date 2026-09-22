@@ -37,35 +37,35 @@ export class MultiDomainStrategyEngine {
       currentValue: number;
       trend: 'INCREASING' | 'DECREASING' | 'STABLE';
     }> = [
-      {
-        domain: 'REVENUE',
-        status: revenueMTD >= 20000 ? 'HEALTHY' : 'ATTENTION_NEEDED',
-        primaryMetric: 'revenueMTD',
-        currentValue: revenueMTD,
-        trend: 'STABLE',
-      },
-      {
-        domain: 'PIPELINE',
-        status: pipelineValue >= 100000 ? 'HEALTHY' : 'ATTENTION_NEEDED',
-        primaryMetric: 'pipelineValue',
-        currentValue: pipelineValue,
-        trend: 'STABLE',
-      },
-      {
-        domain: 'SALES',
-        status: qualifiedLeads > 5 ? 'HEALTHY' : 'ATTENTION_NEEDED',
-        primaryMetric: 'qualifiedLeadsCount',
-        currentValue: qualifiedLeads,
-        trend: 'INCREASING',
-      },
-      {
-        domain: 'OPERATIONS',
-        status: unassignedLeads === 0 ? 'HEALTHY' : 'ATTENTION_NEEDED',
-        primaryMetric: 'unassignedHighPriorityLeads',
-        currentValue: unassignedLeads,
-        trend: unassignedLeads > 0 ? 'DECREASING' : 'STABLE',
-      },
-    ];
+        {
+          domain: 'REVENUE',
+          status: revenueMTD >= 20000 ? 'HEALTHY' : 'ATTENTION_NEEDED',
+          primaryMetric: 'revenueMTD',
+          currentValue: revenueMTD,
+          trend: 'STABLE',
+        },
+        {
+          domain: 'PIPELINE',
+          status: pipelineValue >= 100000 ? 'HEALTHY' : 'ATTENTION_NEEDED',
+          primaryMetric: 'pipelineValue',
+          currentValue: pipelineValue,
+          trend: 'STABLE',
+        },
+        {
+          domain: 'SALES',
+          status: qualifiedLeads > 5 ? 'HEALTHY' : 'ATTENTION_NEEDED',
+          primaryMetric: 'qualifiedLeadsCount',
+          currentValue: qualifiedLeads,
+          trend: 'INCREASING',
+        },
+        {
+          domain: 'OPERATIONS',
+          status: unassignedLeads === 0 ? 'HEALTHY' : 'ATTENTION_NEEDED',
+          primaryMetric: 'unassignedHighPriorityLeads',
+          currentValue: unassignedLeads,
+          trend: unassignedLeads > 0 ? 'DECREASING' : 'STABLE',
+        },
+      ];
 
     // 2. Cross-Domain Dependencies
     const dependencies = CrossDomainDependencyEngine.analyzeDependencies(context);
@@ -117,7 +117,7 @@ export class MultiDomainStrategyEngine {
     strategicHypotheses.push({
       id: 'hyp-pipeline-expansion',
       hypothesis:
-        'Expanding enriched account qualification by 20% will compound pipeline value by ~15% over the next 30 days.',
+        'Expanding enriched account qualification may compound pipeline value over the next 30 days.',
       supportingFacts: [
         `Current qualified lead volume: ${qualifiedLeads}`,
         `Current monthly revenue: $${revenueMTD.toLocaleString()}`,
@@ -130,7 +130,7 @@ export class MultiDomainStrategyEngine {
         'Average deal value remains consistent with historical deals.',
         'Target ICP enrichment accuracy remains above 90%.',
       ],
-      expectedImpact: '15% pipeline expansion with downstream MRR realization.',
+      expectedImpact: 'Potential pipeline expansion with downstream MRR realization.',
       affectedDomains: ['MARKETING', 'SALES', 'PIPELINE', 'REVENUE'],
       confidence: 'MEDIUM',
       confidenceScore: 78,

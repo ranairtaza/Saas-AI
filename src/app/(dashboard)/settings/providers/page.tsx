@@ -11,6 +11,9 @@ export default function ProvidersSettingsPage() {
   const [apolloKey, setApolloKey] = useState("");
   const [isSavingApollo, setIsSavingApollo] = useState(false);
 
+  const [stripeKey, setStripeKey] = useState("");
+  const [isSavingStripe, setIsSavingStripe] = useState(false);
+
   useEffect(() => {
     fetchProviders();
   }, []);
@@ -29,6 +32,7 @@ export default function ProvidersSettingsPage() {
   };
 
   const isApolloConfigured = providers.some(p => p.provider === 'apollo' && p.configured);
+  const isStripeConfigured = providers.some(p => p.provider === 'stripe' && p.configured);
 
   const saveApollo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +71,46 @@ export default function ProvidersSettingsPage() {
       setError(err.message);
     } finally {
       setIsSavingApollo(false);
+    }
+  };
+
+  const saveStripe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripeKey) return;
+    
+    setIsSavingStripe(true);
+    try {
+      const res = await fetch('/api/settings/providers/stripe', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: stripeKey })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save provider');
+      
+      setStripeKey("");
+      fetchProviders();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSavingStripe(false);
+    }
+  };
+
+  const removeStripe = async () => {
+    if (!confirm("Are you sure you want to remove the Stripe Secret key?")) return;
+    
+    setIsSavingStripe(true);
+    try {
+      const res = await fetch('/api/settings/providers/stripe', { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to remove provider');
+      
+      fetchProviders();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSavingStripe(false);
     }
   };
 
@@ -142,6 +186,64 @@ export default function ProvidersSettingsPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {isSavingApollo ? <Loader2 size={16} className="animate-spin" /> : 'Save Key'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <div className="glass rounded-2xl shadow-sm border border-border overflow-hidden mt-6">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                Stripe
+                {isStripeConfigured && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 size={12} /> Configured
+                  </span>
+                )}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Used for revenue and billing telemetry.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 bg-muted/30">
+          <form onSubmit={saveStripe} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Key size={16} className="text-muted-foreground" />
+                Secret Key
+              </label>
+              <input
+                type="password"
+                placeholder={isStripeConfigured ? "Enter new secret key to replace existing" : "sk_live_..."}
+                value={stripeKey}
+                onChange={(e) => setStripeKey(e.target.value)}
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between pt-2">
+              {isStripeConfigured ? (
+                <button
+                  type="button"
+                  onClick={removeStripe}
+                  disabled={isSavingStripe}
+                  className="text-sm text-destructive hover:text-destructive/80 flex items-center gap-1"
+                >
+                  <Trash2 size={16} /> Remove Configuration
+                </button>
+              ) : <div></div>}
+              
+              <button
+                type="submit"
+                disabled={isSavingStripe || !stripeKey}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSavingStripe ? <Loader2 size={16} className="animate-spin" /> : 'Save Key'}
               </button>
             </div>
           </form>

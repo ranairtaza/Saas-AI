@@ -33,7 +33,7 @@ export class RecommendationEngine {
         });
 
         if (!existingGoal) {
-          const suggestedTarget = Math.round(forecastData.forecastedValue * 1.05);
+          const suggestedTarget = Math.round(forecastData.forecastedValue);
 
           const recommendation = await prisma.businessGoal.create({
             data: {
@@ -53,7 +53,7 @@ export class RecommendationEngine {
             id: recommendation.id,
             kpiKey,
             suggestedTarget,
-            explanation: `Based on a highly confident forecast of ${forecastData.forecastedValue}, we recommend a stretch target of ${suggestedTarget}.`,
+            explanation: `Based on a highly confident forecast, we recommend a baseline target of ${suggestedTarget} for the next 30 days.`,
           });
         }
       }

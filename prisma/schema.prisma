@@ -1,6 +1,6 @@
 datasource db {
-  provider = "postgresql"
-  url = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -631,8 +631,8 @@ model BusinessGoal {
   startDate DateTime @default(now())
   endDate   DateTime
   status    String   @default("ON_TRACK") // ON_TRACK | AT_RISK | BEHIND | ACHIEVED | DRAFT | MISSED | CANCELLED
-  source       String   @default("USER_DEFINED") // USER_DEFINED | IMPORTED | SYSTEM_RECOMMENDED
-  period       String   @default("CUSTOM") // MONTH | QUARTER | YEAR | CUSTOM
+  source    String   @default("USER_DEFINED") // USER_DEFINED | IMPORTED | SYSTEM_RECOMMENDED
+  period    String   @default("CUSTOM") // MONTH | QUARTER | YEAR | CUSTOM
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -905,9 +905,9 @@ model ExecutiveDecisionAudit {
 // --- PHASE 29 AI BUSINESS EXECUTIVE: LEARNING SIGNALS & HISTORICAL INTELLIGENCE ---
 
 model ExecutiveLearningSignal {
-  id                 String       @id @default(uuid())
-  organizationId     String
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   decisionId         String?
   outcomeId          String?
@@ -1062,7 +1062,7 @@ model SystemTelemetryEvent {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   userId         String?
-  eventType      String        // REQUEST | ERROR | SYSTEM | SECURITY | AI | BILLING | JOB
+  eventType      String // REQUEST | ERROR | SYSTEM | SECURITY | AI | BILLING | JOB
   severity       String        @default("INFO") // INFO | WARN | ERROR | CRITICAL
   route          String?
   method         String?
@@ -1072,7 +1072,7 @@ model SystemTelemetryEvent {
   traceId        String?
   service        String        @default("api")
   message        String?
-  metadata       String?       // JSON string sanitized
+  metadata       String? // JSON string sanitized
   createdAt      DateTime      @default(now())
 
   @@index([organizationId, createdAt])

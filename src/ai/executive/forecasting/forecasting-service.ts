@@ -43,6 +43,14 @@ export class ExecutiveForecastingService {
     const savedForecasts: ExecutiveForecastData[] = [];
 
     for (const f of forecasts) {
+      if (f.forecastValue === null || f.currentValue === null || f.lowerBound === null || f.upperBound === null) {
+        savedForecasts.push({
+          ...f,
+          id: f.id || `mem-${Math.random()}`,
+        } as any);
+        continue;
+      }
+
       const created = await prisma.executiveForecast.create({
         data: {
           organizationId,

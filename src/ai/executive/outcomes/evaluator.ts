@@ -101,8 +101,8 @@ export class OutcomeEvaluator {
     sampleCount?: number;
     attributionLevel: AttributionLevel;
   }): OutcomeConfidence {
-    const completeness = params.dataCompletenessPct ?? 100;
-    const count = params.sampleCount ?? 1;
+    const completeness = params.dataCompletenessPct ?? 0; // Phase 50: Do not fabricate completeness
+    const count = params.sampleCount ?? 0;
 
     if (completeness < 50 || count === 0) {
       return 'INSUFFICIENT';
@@ -344,8 +344,8 @@ export class OutcomeEvaluator {
     );
 
     const confidence = this.evaluateConfidence({
-      dataCompletenessPct: 100,
-      sampleCount: 1,
+      dataCompletenessPct: isUnknownKpi ? 0 : undefined, // Phase 50: Do not fabricate 100% data completeness
+      sampleCount: isUnknownKpi ? 0 : undefined,
       attributionLevel: input.attributionLevel,
     });
 

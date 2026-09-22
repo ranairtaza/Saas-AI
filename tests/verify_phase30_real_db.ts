@@ -296,7 +296,7 @@ async function runRealDatabaseVerification() {
       forecastWithLearning.evidence.includes('Informed by 1 historical Phase 29 learning signal(s)'),
       'Forecast evidence cites historical Phase 29 signal'
     );
-    assert(forecastWithLearning.forecastValue > 54000, 'Positive learning signal elevates forecast projection');
+    assert(forecastWithLearning.forecastValue! > 54000, 'Positive learning signal elevates forecast projection');
 
     // Zero telemetry invariant: Historical success cannot hallucinate positive forecast from 0 current baseline
     const zeroBaselineForecast = ForecastEngine.generateMetricForecast(testOrgAId, {
@@ -381,13 +381,13 @@ async function runRealDatabaseVerification() {
     const scenarios = firstRun.scenarioComparisons;
     const pipelineScenario = scenarios.find((s) => s.metric === 'pipelineValue')!;
     assert(pipelineScenario, 'Pipeline scenario exists');
-    assert(pipelineScenario.optimisticForecast > pipelineScenario.baselineForecast, 'Pipeline Optimistic > Baseline');
-    assert(pipelineScenario.conservativeForecast < pipelineScenario.baselineForecast, 'Pipeline Conservative < Baseline');
+    assert(pipelineScenario.optimisticForecast! > pipelineScenario.baselineForecast!, 'Pipeline Optimistic > Baseline');
+    assert(pipelineScenario.conservativeForecast! < pipelineScenario.baselineForecast!, 'Pipeline Conservative < Baseline');
 
     const backlogScenario = scenarios.find((s) => s.metric === 'unassignedHighPriorityLeads')!;
     assert(backlogScenario, 'Backlog scenario exists');
-    assert(backlogScenario.optimisticForecast < backlogScenario.baselineForecast, 'Backlog Optimistic reduces backlog faster than Baseline');
-    assert(backlogScenario.conservativeForecast > backlogScenario.baselineForecast, 'Backlog Conservative leaves backlog higher than Baseline');
+    assert(backlogScenario.optimisticForecast! < backlogScenario.baselineForecast!, 'Backlog Optimistic reduces backlog faster than Baseline');
+    assert(backlogScenario.conservativeForecast! > backlogScenario.baselineForecast!, 'Backlog Conservative leaves backlog higher than Baseline');
 
 
     for (const f of firstRun.forecasts) {

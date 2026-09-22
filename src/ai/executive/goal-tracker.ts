@@ -44,8 +44,13 @@ export class GoalTracker {
     currentValue: number,
     startDate: Date,
     endDate: Date,
+    currentStatus?: BusinessGoalStatus,
     now: Date = new Date()
   ): BusinessGoalStatus {
+    if (currentStatus === 'DRAFT' || currentStatus === 'CANCELLED') {
+      return currentStatus;
+    }
+
     if (currentValue >= targetValue && targetValue > 0) {
       return 'ACHIEVED';
     }
@@ -57,7 +62,7 @@ export class GoalTracker {
       return 'BEHIND';
     }
 
-    // In early stage (< 10% elapsed), default to ON_TRACK unless severely negative
+    // Phase 50: Do not dynamically fallback to DRAFT.
     if (timeElapsedPct < 10) {
       return 'ON_TRACK';
     }
@@ -83,6 +88,7 @@ export class GoalTracker {
       currentValue: number;
       startDate: Date;
       endDate: Date;
+      status?: BusinessGoalStatus;
     },
     now: Date = new Date()
   ): {
@@ -99,6 +105,7 @@ export class GoalTracker {
       goal.currentValue,
       goal.startDate,
       goal.endDate,
+      goal.status,
       now
     );
 
@@ -196,6 +203,7 @@ export class GoalTracker {
         currentValue: g.currentValue,
         startDate: g.startDate,
         endDate: g.endDate,
+        status: g.status as BusinessGoalStatus,
       });
 
       return {
@@ -242,6 +250,7 @@ export class GoalTracker {
       currentValue,
       startDate: existing.startDate,
       endDate: existing.endDate,
+      status: existing.status as BusinessGoalStatus,
     });
 
     const updated = await prisma.businessGoal.update({

@@ -192,18 +192,18 @@ CRITICAL INSTRUCTIONS:
               `Unassigned high-priority leads currently in queue: ${(unassignedCount ?? 0)}`,
             ],
             observations: [
-              'Qualified enterprise leads experience up to 40% conversion decay when uncontacted past standard SLA thresholds.',
+              'Prompt engagement of qualified leads prevents pipeline velocity loss and increases conversion probability.',
             ],
             hypotheses: [
               {
                 hypothesis: 'Prompt distribution to senior account executives will increase discovery meeting booking rates.',
                 confidence: 'HIGH',
                 confidenceRationale: 'Directly supported by historical conversion metrics on prompt outreach.',
-                supportingObservations: ['Qualified enterprise leads experience up to 40% conversion decay when uncontacted past standard SLA thresholds.'],
+                supportingObservations: ['Prompt engagement of qualified leads prevents pipeline velocity loss and increases conversion probability.'],
               },
             ],
           },
-          expectedImpact: `Accelerate $${((unassignedCount ?? 0) * 5000).toLocaleString()} in potential pipeline value.`,
+          expectedImpact: `Accelerate engagement for ${unassignedCount ?? 0} high-priority prospect${(unassignedCount ?? 0) > 1 ? 's' : ''}.`,
           confidence: 'HIGH',
           actionProposal: {
             actionName: 'assign_lead',
@@ -304,7 +304,7 @@ CRITICAL INSTRUCTIONS:
               },
             ],
           },
-          expectedImpact: 'Expand pipeline by an estimated 15-20 qualified accounts.',
+          expectedImpact: 'Maintain pipeline velocity and identify new high-fit target accounts.',
           confidence: 'HIGH',
           actionProposal: {
             actionName: 'add_lead_note',
