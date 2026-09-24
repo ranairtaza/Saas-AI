@@ -311,8 +311,8 @@ export class ExecutiveActionPlanner {
     );
 
     if (isRevenueAtRisk && hasVerifiedRevenueForecast) {
-      const currentRev = revenueForecast.currentValue as number;
-      const forecastRev = revenueForecast.forecastValue as number;
+      const currentRev = revenueForecast!.currentValue as number;
+      const forecastRev = revenueForecast!.forecastValue as number;
 
       const govEvaluation = ExecutiveGovernanceEngine.evaluateStrategy(
         {

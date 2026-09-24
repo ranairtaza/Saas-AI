@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getCurrentUser } from '@/lib/session';
 import { getOrCreateStripeCustomer, createCheckoutSession } from '@/lib/billing/stripe';
+import { hasPermission } from '@/permissions/rbac';
+import { PERMISSIONS } from '@/permissions/definitions';
 
 export async function POST(request: Request) {
   try {
