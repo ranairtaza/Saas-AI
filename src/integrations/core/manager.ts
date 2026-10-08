@@ -103,10 +103,12 @@ export class SyncManager {
 }
 
 import { stripeAdapter } from '../providers/stripe/adapter';
+import { keyabroadAdapter } from '../providers/keyabroad/adapter';
 
 // Singleton instance
 export const syncManager = new SyncManager();
 syncManager.registerProvider(stripeAdapter);
+syncManager.registerProvider(keyabroadAdapter);
 
 // Strictly quarantine mock provider: never registered in production runtime
 if (process.env.NODE_ENV === 'test' || process.env.ENABLE_MOCK_INTEGRATION_TESTS === 'true') {

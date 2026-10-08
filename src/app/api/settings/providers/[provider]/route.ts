@@ -5,6 +5,7 @@ import { encrypt } from '@/lib/encryption';
 import { z } from 'zod';
 import { hasPermission } from '@/permissions/rbac';
 import { PERMISSIONS } from '@/permissions/definitions';
+import { syncManager } from '@/integrations/core/manager';
 
 const ALLOWLISTED_PROVIDERS = ['apollo', 'stripe'];
 
@@ -33,6 +34,16 @@ export async function PUT(request: Request, context: { params: Promise<{ provide
     const result = credentialSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json({ error: 'Invalid input data', details: result.error.format() }, { status: 400 });
+    }
+
+    const providerInstance = syncManager.getProvider(provider);
+    if (!providerInstance) {
+      return NextResponse.json({ error: 'Unsupported provider implementation' }, { status: 400 });
+    }
+
+    const isValid = await providerInstance.connect(user.organizationId, { apiKey: result.data.apiKey });
+    if (!isValid) {
+      return NextResponse.json({ error: 'Provider connection validation failed. Please check your credentials.' }, { status: 400 });
     }
 
     const encryptedKey = encrypt(result.data.apiKey);

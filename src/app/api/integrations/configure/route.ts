@@ -5,6 +5,7 @@ import { PERMISSIONS } from '../../../../permissions/definitions';
 
 import { getCurrentUser } from '@/lib/session';
 import { encrypt } from '@/lib/encryption';
+import { syncManager } from '@/integrations/core/manager';
 
 export async function POST(req: Request) {
   try {
@@ -30,6 +31,23 @@ export async function POST(req: Request) {
 
     if (!integration) {
       return NextResponse.json({ error: 'Provider not found' }, { status: 404 });
+    }
+
+    // Validate credentials BEFORE saving
+    if (credentials) {
+      const providerInstance = syncManager.getProvider(providerId);
+      if (providerInstance) {
+        let credsObj = credentials;
+        if (typeof credentials === 'string') {
+          credsObj = { apiKey: credentials };
+        }
+        const isValid = await providerInstance.connect(user.organizationId, credsObj);
+        if (!isValid) {
+          return NextResponse.json({ error: 'Provider connection validation failed. Please check your credentials.' }, { status: 400 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Unsupported provider implementation' }, { status: 400 });
+      }
     }
 
     // Encrypt credentials securely
