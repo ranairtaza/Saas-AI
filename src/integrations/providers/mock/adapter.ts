@@ -22,6 +22,10 @@ export class MockIntegrationProvider implements IntegrationProvider {
     return true;
   }
 
+  async testConnection(apiKey: string): Promise<boolean> {
+    return true;
+  }
+
   async sync(organizationId: string, connectionId: string): Promise<SyncResult> {
     // Strictly prevent synthetic data fabrication in production to uphold deterministic data integrity
     if (process.env.NODE_ENV === 'production' && process.env.ENABLE_MOCK_INTEGRATION_TESTS !== 'true') {

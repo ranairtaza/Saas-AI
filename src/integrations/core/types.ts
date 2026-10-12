@@ -7,6 +7,7 @@ export interface IntegrationProvider {
   validateConnection(organizationId: string): Promise<boolean>;
   sync(organizationId: string, connectionId: string): Promise<SyncResult>;
   healthCheck(): Promise<boolean>;
+  testConnection(apiKey: string): Promise<boolean>;
 }
 
 export interface SyncResult {

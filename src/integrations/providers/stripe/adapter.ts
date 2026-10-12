@@ -117,5 +117,10 @@ export const stripeAdapter: IntegrationProvider = {
 
   async healthCheck(): Promise<boolean> {
     return true;
+  },
+
+  async testConnection(apiKey: string): Promise<boolean> {
+    const provider = new StripeTelemetryProvider(apiKey);
+    return await provider.testConnection();
   }
 };

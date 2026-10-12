@@ -363,22 +363,21 @@ export default function Home() {
       <header className="sticky top-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50 transition-all">
         <div className="container mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/25">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-600 via-indigo-600 to-purple-800 flex items-center justify-center shadow-lg shadow-purple-600/30">
               <span className="text-white font-black text-2xl leading-none">L</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-xl tracking-tight leading-tight">LeadMachine</span>
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">Executive OS</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-extrabold text-2xl tracking-tight leading-tight">LeadMachine</span>
             </div>
           </div>
 
-          <nav className="hidden lg:flex items-center gap-7 text-sm font-medium text-muted-foreground">
+          <nav className="hidden lg:flex items-center gap-8 text-sm font-medium text-muted-foreground">
+            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
             <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-            <a href="#executive-team" className="hover:text-foreground transition-colors">Executive Team</a>
-            <a href="#features" className="hover:text-foreground transition-colors">Capabilities</a>
-            <a href="#governance" className="hover:text-foreground transition-colors">Trust & Governance</a>
             <a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a>
-            <a href="#resources" className="hover:text-foreground transition-colors">FAQs</a>
+            <a href="#resources" className="hover:text-foreground transition-colors flex items-center gap-1">
+              Resources <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+            </a>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -387,11 +386,11 @@ export default function Home() {
               href="/login"
               className="text-sm font-semibold hover:text-primary transition-colors px-3 py-2"
             >
-              Sign In
+              Login
             </Link>
             <Link
               href="/register"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-md shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md shadow-purple-600/30 hover:shadow-purple-600/50 hover:-translate-y-0.5"
             >
               Start Free Trial
             </Link>
@@ -400,87 +399,141 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <section className="container mx-auto px-4 sm:px-6 pt-12 pb-16 lg:pt-20 lg:pb-28 relative z-10">
-        <div className="max-w-4xl mx-auto text-center space-y-7 animate-in slide-in-from-bottom-6 duration-700">
+      <section className="container mx-auto px-4 sm:px-6 pt-12 pb-16 lg:pt-20 lg:pb-24 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center max-w-7xl mx-auto">
           
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold tracking-wide uppercase border border-primary/20 shadow-sm">
-            <Sparkles className="h-3.5 w-3.5 text-primary" />
-            LeadMachine — The AI Operating System for Business Owners
+          {/* Left Column - Headline & Copy */}
+          <div className="lg:col-span-7 space-y-7 text-left">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-xs font-bold tracking-wide uppercase border border-purple-500/20 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-purple-500" />
+              AI-POWERED LEAD GENERATION
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl lg:text-[68px] font-black tracking-tight leading-[1.05] text-foreground">
+              Find. Qualify.<br />
+              <span className="text-gradient">Close More Deals.</span>
+            </h1>
+
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
+              We find high-quality leads, enrich their data, and help you reach the right prospects so you can focus on closing.
+            </p>
+
+            {/* Bullet points from design */}
+            <div className="space-y-2.5 pt-1 text-sm font-medium text-foreground">
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-purple-600" />
+                <span>1000+ Data Sources</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-purple-600" />
+                <span>AI-Powered & Always Updating</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-purple-600" />
+                <span>Verified Email & Phone</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="h-2 w-2 rounded-full bg-purple-600" />
+                <span>Export & Integrate Anywhere</span>
+              </div>
+            </div>
+
+            <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+              <Link
+                href="/register"
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:opacity-95 text-white text-base font-bold rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-purple-600/30 hover:shadow-purple-600/50 hover:-translate-y-0.5"
+              >
+                Start Free Trial <ArrowRight className="h-4 w-4" />
+              </Link>
+              <a
+                href="#how-it-works"
+                className="px-7 py-4 border border-border/80 bg-card/60 hover:bg-muted/60 text-foreground text-base font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm backdrop-blur-sm"
+              >
+                See How It Works <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-foreground/30 text-xs">▶</span>
+              </a>
+            </div>
+
+            <p className="text-xs text-muted-foreground font-medium pt-1">
+              No credit card required
+            </p>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.08] text-foreground">
-            Know what is happening. <br />
-            Know what matters. <br />
-            <span className="text-gradient">Approve what happens next.</span>
-          </h1>
+          {/* Right Column - Hero Visual Glassmorphism Cards */}
+          <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+            <div className="relative w-full max-w-md">
+              {/* Radial Glowing aura behind cards */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-purple-600/30 via-indigo-500/20 to-cyan-400/30 blur-3xl -z-10 rounded-full scale-110" />
 
-          <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-            Turn your business data into clear decisions, strategic priorities, and controlled actions — from anywhere. An owner should never need to check five different tools just to understand what needs attention.
-          </p>
+              {/* Floating Purple Search Icon Bubble */}
+              <div className="absolute -top-5 -right-3 z-20 h-14 w-14 rounded-full bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center shadow-xl shadow-purple-600/40 border-2 border-white/30 text-white animate-bounce duration-1000">
+                <Search className="h-6 w-6" />
+              </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/register"
-              className="w-full sm:w-auto px-8 py-4 bg-primary hover:bg-primary/90 text-primary-foreground text-base font-bold rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5"
-            >
-              Start Running Your Business Smarter <ArrowRight className="h-4 w-4" />
-            </Link>
-            <a
-              href="#how-it-works"
-              className="w-full sm:w-auto px-8 py-4 border border-border bg-card/80 hover:bg-muted text-foreground text-base font-semibold rounded-xl flex items-center justify-center transition-colors shadow-sm"
-            >
-              See How It Works
-            </a>
-          </div>
+              {/* 3 Stacked Lead Preview Cards from Figma */}
+              <div className="space-y-3.5 relative z-10">
+                {/* Lead 1: Marketing Agency 92 */}
+                <div className="p-4 rounded-2xl bg-card/85 dark:bg-card/90 backdrop-blur-xl border border-border/70 dark:border-white/10 shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 flex items-center justify-center font-bold text-base shadow-sm">
+                      🏢
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">Marketing Agency</h4>
+                      <p className="text-xs text-muted-foreground">New York, USA</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
+                    92
+                  </div>
+                </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 max-w-2xl mx-auto text-xs sm:text-sm font-medium text-muted-foreground">
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <span>AI Recommends. You Decide.</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <span>Evidence-Backed Rationale</span>
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-shrink-0" />
-              <span>7-Day Free Trial · No Lock-In</span>
+                {/* Lead 2: Web Development Co. 88 */}
+                <div className="p-4 rounded-2xl bg-card/85 dark:bg-card/90 backdrop-blur-xl border border-border/70 dark:border-white/10 shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-between gap-4 ml-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-600 flex items-center justify-center font-bold text-base shadow-sm">
+                      💻
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">Web Development Co.</h4>
+                      <p className="text-xs text-muted-foreground">Austin, USA</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 font-extrabold text-xs">
+                    88
+                  </div>
+                </div>
+
+                {/* Lead 3: E-commerce Store 86 */}
+                <div className="p-4 rounded-2xl bg-card/85 dark:bg-card/90 backdrop-blur-xl border border-border/70 dark:border-white/10 shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 flex items-center justify-center font-bold text-base shadow-sm">
+                      🛍️
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">E-commerce Store</h4>
+                      <p className="text-xs text-muted-foreground">Los Angeles, USA</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center h-9 w-9 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
+                    86
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Conceptual Loop Banner Preview */}
-        <div className="mt-16 max-w-5xl mx-auto rounded-3xl border border-border/80 bg-card/90 backdrop-blur-md p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
-            <div className="flex items-center gap-2.5">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
-              </span>
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Continuous Executive Operating Cycle
-              </span>
-            </div>
-            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/10 text-primary w-fit">
-              Deterministic Governance · Human in the Loop
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-center text-xs">
-            {[
-              { label: '1. Business Data', color: 'text-foreground' },
-              { label: '2. Ground Truth', color: 'text-foreground' },
-              { label: '3. Forecast', color: 'text-foreground' },
-              { label: '4. Goals', color: 'text-foreground' },
-              { label: '5. Strategy', color: 'text-foreground' },
-              { label: '6. Execution Plan', color: 'text-foreground' },
-              { label: '7. Human Approval', color: 'text-primary font-bold' },
-              { label: '8. Controlled Action', color: 'text-emerald-500 font-bold' },
-            ].map((node, i) => (
-              <div key={i} className="p-2.5 rounded-xl bg-muted/40 border border-border/50 flex flex-col items-center justify-center">
-                <span className={`text-[11px] ${node.color}`}>{node.label}</span>
-              </div>
-            ))}
+        {/* Social Proof Bar from Design */}
+        <div className="mt-20 pt-10 border-t border-border/50 text-center space-y-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Trusted by 2,000+ businesses worldwide
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-14 opacity-75 dark:opacity-85 font-black text-lg sm:text-xl tracking-tight text-foreground/80">
+            <span className="flex items-center gap-1 text-orange-500 font-bold tracking-normal"><span className="text-2xl">🟧</span> HubSpot</span>
+            <span className="flex items-center gap-1 text-emerald-500 font-bold tracking-normal"><span className="text-2xl">🍃</span> envato</span>
+            <span className="flex items-center gap-1 text-red-500 font-bold tracking-normal"><span className="text-2xl">📦</span> aftership</span>
+            <span className="flex items-center gap-1 text-blue-500 font-bold tracking-normal"><span className="text-2xl">🗓️</span> Calendly</span>
+            <span className="flex items-center gap-1 text-amber-500 font-bold tracking-normal"><span className="text-2xl">🔴</span> Zoho</span>
           </div>
         </div>
       </section>
@@ -769,170 +822,213 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Section 12: Pricing Page */}
+      {/* Section 12: Pricing Page from Design Mockup */}
       <section id="pricing" className="py-24 border-t border-border/50 bg-muted/10 relative">
         <div className="container mx-auto px-4 sm:px-6">
-          <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
-            <span className="text-xs font-bold uppercase tracking-wider text-primary px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-              Predictable Executive Investment
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight">
-              Plans Built for Business Operating Capability
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-14">
+            <h2 className="text-3xl sm:text-5xl font-black tracking-tight">
+              Simple, Transparent Pricing
             </h2>
             <p className="text-muted-foreground text-base sm:text-lg">
-              Choose the tier suited to your operating complexity. All plans include the core Executive Operating System.
+              Choose the plan that's right for your business.
             </p>
+          </div>
 
-            {/* Billing Toggle */}
-            <div className="pt-4 flex items-center justify-center gap-3">
-              <span className={`text-sm font-semibold ${billingCycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                Monthly
-              </span>
-              <button
-                type="button"
-                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                className="w-14 h-8 rounded-full bg-muted border border-border p-1 relative transition-colors focus:outline-none min-h-[44px] flex items-center"
-                aria-label="Toggle Annual Billing"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+            {/* 1. Starter - $49/mo */}
+            <div className="p-7 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6 shadow-sm hover:shadow-md transition-all">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-bold">Starter</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Perfect for small businesses and solo entrepreneurs.</p>
+                </div>
+                <div className="pt-2">
+                  <span className="text-4xl font-black text-foreground">$49</span>
+                  <span className="text-muted-foreground text-xs"> /month</span>
+                  <p className="text-[11px] text-muted-foreground">Billed monthly</p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground pt-4 border-t border-border/60">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>1,000 Leads / month</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Basic Lead Filters</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Email & Phone (Limited)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>CSV Export</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Email Support</span>
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/register"
+                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-bold text-xs text-center transition-colors block min-h-[44px] flex items-center justify-center"
               >
-                <div
-                  className={`w-6 h-6 rounded-full bg-primary transition-transform ${
-                    billingCycle === 'annual' ? 'translate-x-6' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-              <span className={`text-sm font-semibold flex items-center gap-1.5 ${billingCycle === 'annual' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                Annual
-                <span className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
-                  Save 20%
-                </span>
-              </span>
+                Start Free Trial
+              </Link>
+            </div>
+
+            {/* 2. Growth - $99/mo (MOST POPULAR) */}
+            <div className="p-7 rounded-3xl bg-card border-2 border-purple-600 shadow-2xl shadow-purple-600/20 relative flex flex-col justify-between space-y-6 transform lg:-translate-y-2">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black px-3.5 py-1 rounded-full uppercase tracking-wider shadow-md">
+                MOST POPULAR
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-bold">Growth</h3>
+                  <p className="text-xs text-muted-foreground mt-1">For growing businesses that need more leads.</p>
+                </div>
+                <div className="pt-2">
+                  <span className="text-4xl font-black text-foreground">$99</span>
+                  <span className="text-muted-foreground text-xs"> /month</span>
+                  <p className="text-[11px] text-muted-foreground">Billed monthly</p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground pt-4 border-t border-border/60">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span className="font-semibold text-foreground">5,000 Leads / month</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Advanced Lead Filters</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Email & Phone</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>AI Lead Scoring</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>CSV & CRM Export</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Priority Support</span>
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/register"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs text-center transition-all shadow-lg shadow-purple-600/30 block min-h-[44px] flex items-center justify-center hover:-translate-y-0.5"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+
+            {/* 3. Pro - $199/mo */}
+            <div className="p-7 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6 shadow-sm hover:shadow-md transition-all">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-bold">Pro</h3>
+                  <p className="text-xs text-muted-foreground mt-1">For agencies and teams that want maximum results.</p>
+                </div>
+                <div className="pt-2">
+                  <span className="text-4xl font-black text-foreground">$199</span>
+                  <span className="text-muted-foreground text-xs"> /month</span>
+                  <p className="text-[11px] text-muted-foreground">Billed monthly</p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground pt-4 border-t border-border/60">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span className="font-semibold text-foreground">15,000 Leads / month</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Advanced Lead Filters</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Email & Phone</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>AI Lead Scoring</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>CSV & CRM Export</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Priority Support</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Team Access</span>
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/register"
+                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-bold text-xs text-center transition-colors block min-h-[44px] flex items-center justify-center"
+              >
+                Start Free Trial
+              </Link>
+            </div>
+
+            {/* 4. Enterprise - Custom */}
+            <div className="p-7 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6 shadow-sm hover:shadow-md transition-all">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-bold">Enterprise</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Custom solutions for large organizations.</p>
+                </div>
+                <div className="pt-2">
+                  <span className="text-4xl font-black text-foreground">Custom</span>
+                  <p className="text-[11px] text-muted-foreground mt-1">Let's talk</p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground pt-4 border-t border-border/60">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span className="font-semibold text-foreground">Unlimited Leads</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Custom Integrations</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Dedicated Account Manager</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>Advanced Security</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>SSO & Custom Reports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                    <span>SLA & Priority Support</span>
+                  </li>
+                </ul>
+              </div>
+              <Link
+                href="/register"
+                className="w-full py-3 px-4 rounded-xl bg-foreground text-background hover:opacity-90 font-bold text-xs text-center transition-all block min-h-[44px] flex items-center justify-center"
+              >
+                Contact Sales
+              </Link>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {/* Free Trial */}
-            <div className="p-8 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold">Free Trial</h3>
-                <p className="text-sm text-muted-foreground">Test the Executive Operating System with full feature access for 7 days.</p>
-                <div className="pt-2">
-                  <span className="text-4xl font-black">$0</span>
-                  <span className="text-muted-foreground text-sm"> / 7 days</span>
-                </div>
-                <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Executive Command Center</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Attention & Decision Queue</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>100 Verified Lead Discovery Credits</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Mobile Executive Home Access</span>
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="/register"
-                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block min-h-[44px] flex items-center justify-center"
-              >
-                Start Free 7-Day Trial
-              </Link>
-            </div>
-
-            {/* Professional Plan (Highlighted) */}
-            <div className="p-8 rounded-3xl bg-card border-2 border-primary shadow-2xl shadow-primary/15 relative flex flex-col justify-between space-y-6">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
-                Most Popular
-              </div>
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold">Professional</h3>
-                <p className="text-sm text-muted-foreground">For business owners who want complete visibility and AI-assisted decisions.</p>
-                <div className="pt-2">
-                  <span className="text-4xl font-black">
-                    ${billingCycle === 'annual' ? '39' : '49'}
-                  </span>
-                  <span className="text-muted-foreground text-sm"> / month</span>
-                </div>
-                <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-semibold text-foreground">Executive Command & Decision Queue</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Predictive BI & ARR Trend Forecasting</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>2,500 Verified Lead Credits / Month</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Goal Pacing & Strategic Prioritization</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Up to 5 Team Seats</span>
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="/register"
-                className="w-full py-3 px-4 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm text-center transition-all shadow-md shadow-primary/25 block min-h-[44px] flex items-center justify-center"
-              >
-                Get Started with Pro
-              </Link>
-            </div>
-
-            {/* Business Plan */}
-            <div className="p-8 rounded-3xl bg-card border border-border/80 flex flex-col justify-between space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold">Business</h3>
-                <p className="text-sm text-muted-foreground">For growing companies needing deeper intelligence, strategy, and governed execution.</p>
-                <div className="pt-2">
-                  <span className="text-4xl font-black">
-                    ${billingCycle === 'annual' ? '159' : '199'}
-                  </span>
-                  <span className="text-muted-foreground text-sm"> / month</span>
-                </div>
-                <ul className="space-y-3 text-sm text-muted-foreground pt-4 border-t border-border/60">
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="font-semibold text-foreground">Complete Executive OS & Multi-User Governance</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Custom Governance Policies & Rules</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>15,000 Verified Lead Credits / Month</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>CRM & Stripe Bi-Directional Event Sync</span>
-                  </li>
-                  <li className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span>Priority Support & SLA</span>
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="/register"
-                className="w-full py-3 px-4 rounded-xl border border-border hover:bg-muted font-semibold text-sm text-center transition-colors block min-h-[44px] flex items-center justify-center"
-              >
-                Upgrade to Business
-              </Link>
-            </div>
-          </div>
+          <p className="text-center text-xs text-muted-foreground mt-12 font-medium">
+            7-day free trial. Cancel anytime. No credit card required.
+          </p>
         </div>
       </section>
 

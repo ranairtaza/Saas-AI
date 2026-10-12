@@ -98,69 +98,52 @@ export default function DashboardLayout({
 
           <nav className="flex-1 px-4 space-y-6 overflow-y-auto pb-6">
             
-            {/* Primary Executive Section */}
+            {/* Main LeadMachine Navigation from Design */}
             <div className="space-y-1">
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Primary
+              <NavItem href="/dashboard" icon={<LayoutDashboard size={18} />} active={pathname === "/dashboard"}>
+                Dashboard
+              </NavItem>
+              <NavItem href="/leads" icon={<Users size={18} />} active={pathname === "/leads"}>
+                Leads
+              </NavItem>
+              <NavItem href="/discover" icon={<Search size={18} />} active={pathname === "/discover"}>
+                Search Leads
+              </NavItem>
+              <NavItem href="/executive#actions" icon={<Target size={18} />} active={false}>
+                Campaigns
+              </NavItem>
+              <NavItem href="/executive#outcomes" icon={<FileText size={18} />} active={false}>
+                Exports
+              </NavItem>
+              <NavItem href="/settings/providers" icon={<Bot size={18} />} active={pathname === "/settings/providers"}>
+                Integrations
+              </NavItem>
+              <NavItem href="/billing" icon={<CreditCard size={18} />} active={pathname === "/billing"}>
+                Billing
+              </NavItem>
+              <NavItem href="/settings" icon={<Settings size={18} />} active={pathname.startsWith("/settings") && pathname !== "/settings/providers"}>
+                Settings
+              </NavItem>
+            </div>
+
+            {/* Executive OS Governance (Preserved & Accessible) */}
+            <div className="space-y-1 pt-3 border-t border-border/50">
+              <div className="px-3 mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                <span>Executive OS</span>
+                <span className="text-[9px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.2 rounded font-semibold">Pro</span>
               </div>
-              <NavItem href="/executive" icon={<LayoutDashboard size={18} />} active={pathname === "/executive"}>
+              <NavItem href="/executive" icon={<Activity size={18} />} active={pathname === "/executive"}>
                 Executive Command
               </NavItem>
-              <NavItem href="/executive#attention" icon={<AlertTriangle size={18} />} active={false}>
-                Attention Required
-              </NavItem>
-              <NavItem href="/executive#actions" icon={<Lightbulb size={18} />} active={false}>
-                Recommended Actions
-              </NavItem>
               <NavItem href="/executive#decisions" icon={<CheckSquare size={18} />} active={false}>
-                Decisions
+                Decision Queue
               </NavItem>
               <NavItem href="/executive#forecast" icon={<TrendingUp size={18} />} active={false}>
-                Forecast
+                Forecast & Goals
               </NavItem>
-              <NavItem href="/executive#outcomes" icon={<BarChart size={18} />} active={false}>
-                Results / Outcomes
-              </NavItem>
-            </div>
-
-            {/* Supporting Executive Section */}
-            <div className="space-y-1">
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Supporting
-              </div>
-              <NavItem href="/executive#metrics" icon={<Briefcase size={18} />} active={false}>
-                Business / Metrics
-              </NavItem>
-              <NavItem href="/executive#goals" icon={<Target size={18} />} active={false}>
-                Goals
-              </NavItem>
-              <NavItem href="/executive#briefing" icon={<FileText size={18} />} active={false}>
-                Executive Briefing
-              </NavItem>
-              <NavItem href="/executive#assistant" icon={<Bot size={18} />} active={false}>
-                AI Assistant
-              </NavItem>
-            </div>
-
-            {/* Existing CRM */}
-            <div className="space-y-1">
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Existing CRM
-              </div>
-              <NavItem href="/leads" icon={<Users size={18} />} active={pathname === "/leads"}>Leads</NavItem>
-              <NavItem href="/discover" icon={<Search size={18} />} active={pathname === "/discover"}>Discover</NavItem>
-            </div>
-
-            {/* Administration */}
-            <div className="space-y-1">
-              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Administration
-              </div>
-              <NavItem href="/billing" icon={<CreditCard size={18} />} active={pathname === "/billing"}>Billing</NavItem>
-              <NavItem href="/settings" icon={<Settings size={18} />} active={pathname.startsWith("/settings")}>Settings</NavItem>
               {(user.role === "OWNER" || user.role === "ADMIN") && (
-                <NavItem href="/system" icon={<Activity size={18} />} active={pathname === "/system"}>
-                  System Command Center
+                <NavItem href="/system" icon={<Briefcase size={18} />} active={pathname === "/system"}>
+                  System Health
                 </NavItem>
               )}
             </div>
